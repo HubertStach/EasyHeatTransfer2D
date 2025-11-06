@@ -29,8 +29,5 @@ struct MainWindow{
     bool can_solve=false;
     Fem::GlobalData configuration;
 
-    std::vector<go::Node> glob_nodes;
-    std::vector<go::Node> bc_nodes;
-
     MainWindow();
 };

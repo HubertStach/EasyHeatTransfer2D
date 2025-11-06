@@ -16,7 +16,6 @@ include(cmake/rlimgui.cmake)
 set(SOURCE_FILES
     main.cpp
     src/main_window.cpp
-    src/mesh/mesh.cpp
     src/mesh/geometry.cpp
     src/mes/mes.cpp
     src/gauss/gauss.cpp

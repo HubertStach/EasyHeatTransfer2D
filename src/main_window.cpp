@@ -14,7 +14,7 @@
 
 #include "mes/mes.h"
 #include "mesh/geometry.h"
-#include "mesh/mesh.h"
+//#include "mesh/mesh.h"
 #include "main_window.h"
 
 MainWindow::MainWindow()
@@ -28,10 +28,7 @@ MainWindow::MainWindow()
     camera.rotation = 0.0f;
     camera.zoom = camera_base_zoom;
 
-    go::Vertex polygon;
-    std::vector<go::Vertex> mesh;
-
-    std::thread worker_thread; //for fem_solver
+    geo::Mesh mesh;
 
     while (!WindowShouldClose())
     {
@@ -66,16 +63,17 @@ MainWindow::MainWindow()
             ImGui::Text("Press Enter to create mesh");
 
             if (ImGui::Button("Reset nodes")){
-                polygon.vertices.clear();
-                polygon.create_edges();
-                mesh.clear();
+                //resetowanie siatki
+                mesh.nodes.clear();
+                mesh.triangles.clear();
+                mesh.edges.clear();
             }
 
             if (ImGui::CollapsingHeader("Mesh options"))
             {
 
                 ImGui::BeginChild("##child3", ImVec2(0, 150), true);
-                ImGui::Text("Node spacing");
+                ImGui::Text("Node spacing density");
                 ImGui::SliderFloat("##", &spacing, 0.5f, 5.0f);
 
                 ImGui::EndChild();
@@ -105,15 +103,21 @@ MainWindow::MainWindow()
             if (ImGui::Button("Save")){
                 std::cout<<"Save clicked\n";
                 if(mesh_created){
-                    to_fem::write_to_FEM(glob_nodes, bc_nodes, configuration, mesh);
+                    
                 }
             }
 
+            
             if (ImGui::Button("Solve")){
-                Fem::Solution solution(DATA_DIR "/fem_data.txt");
-                solution.solve(false, true);
+                try{
+                    //Fem::Solution solution(DATA_DIR "/fem_data.txt");
+                    //solution.solve(false, true);
+                } catch(...){
+                    std::cout<<"error occured\n";
+                }
                 
             }
+            
             ImGui::EndChild();
         }
 
@@ -186,6 +190,7 @@ MainWindow::MainWindow()
                 show_grid_dim(camera);
             }
 
+            /*
             polygon.draw((1/camera.zoom));
 
             for(auto &quad:mesh){
@@ -195,9 +200,16 @@ MainWindow::MainWindow()
             for(auto&it:bc_nodes){
                 it.change_color(RED);
                 it.draw((1/camera.zoom));
-            }
+            }*/
+
+            //rysowanie punktów i wielokątów
+            mesh.draw_edges();
+            std::cout<<mesh.initial_bc_nodes.size()<<"\n";
+            mesh.draw_tr();
+            mesh.draw_nodes(3*(1/camera.zoom));
 
         EndMode2D();
+        
 
         if(creatingMesh){
             Vector2 worldPos = GetScreenToWorld2D(GetMousePosition(), camera);
@@ -213,32 +225,21 @@ MainWindow::MainWindow()
             DrawTextEx(GetFontDefault(), TextFormat("[%0.1f, %0.1f]", (float)worldPos.x, (float)worldPos.y), Vector2Add(screenPos, pos_vec), 20, 2, BLACK);
 
             if(IsKeyPressed(KEY_E)){
-                add_new_node(worldPos, polygon);
-                if(mesh_created){
-                    mesh.clear();
-                }
+                //dodawanie punktu
+                mesh.add_point(worldPos.x, worldPos.y);
+                //std::cout<<mesh.nodes.size()<<"\n";
             }
 
             if(IsKeyPressed(KEY_Q)){
-                bc_nodes.clear();
-                pop_node(polygon);
-
-                if(mesh_created){
-                    mesh.clear();
-                }
-
-                if(polygon.vertices.size() == 0 && mesh_created){
-                    mesh_created = false;
-                }
+               //usuwanie punktu
+               mesh.pop_point();
+               mesh.mesh_created=false;
+               //std::cout<<mesh.nodes.size()<<"\n";
             }
 
             if(IsKeyPressed(KEY_ENTER)){
-                //creating simple mesh
-
-                mesh = msh::create_quad_mesh(polygon, spacing, glob_nodes);
-                bc_nodes = msh::create_bcs(glob_nodes, polygon);
-
-                mesh_created = true;
+                //tworzenie siatki
+                mesh.create_mesh(spacing);
             }
         }
 
