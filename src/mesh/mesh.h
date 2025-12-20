@@ -1,3 +1,4 @@
+/*
 #pragma once
 #include <vector>
 
@@ -22,8 +23,8 @@ namespace msh{
 
     std::vector<go::Triangle> bowyer_watson(std::vector<go::Node>& node_list);
     
-    std::vector<go::Vertex> triangles_to_quads(std::vector<go::Triangle> &triangles, std::vector<go::Node> &nodes);
-    std::vector<go::Vertex> create_quad_mesh(go::Vertex &polygon, const float &spacing, std::vector<go::Node> &nodes);
+    //std::vector<go::Vertex> triangles_to_quads(std::vector<go::Triangle> &triangles, std::vector<go::Node> &nodes);
+    void create_mesh(go::Vertex polygon, float spacing, std::vector<go::Triangle> &triangles, std::vector<go::Node> &nodes);
 
     bool is_node_on_segment(const go::Segment& edge, const go::Node &node);
     std::vector<go::Node> create_bcs(const std::vector<go::Node> &all_nodes, const go::Vertex polygon);
@@ -31,25 +32,24 @@ namespace msh{
 
 
 namespace to_fem{
-    struct Quad_ref{
-        int node_ids[4];
+    struct Tri_ref{
+        int node_ids[3];
 
-        Quad_ref(){
+        Tri_ref(){
             node_ids[0] = 0.0f;
             node_ids[1] = 0.0f;
             node_ids[2] = 0.0f;
-            node_ids[3] = 0.0f;
         }
 
-        Quad_ref(int id1, int id2, int id3, int id4){
+        Tri_ref(int id1, int id2, int id3){
             node_ids[0] = id1;
             node_ids[1] = id2;
             node_ids[2] = id3;
-            node_ids[3] = id4;
         }
     };
 
-    std::vector<Quad_ref> convert_to_fem(const std::vector<go::Node> &nodes, const std::vector<go::Vertex> &quad_mesh);
-    void print_mesh(const std::vector<go::Node> &nodes, std::vector<Quad_ref> quad_refs);
-    void write_to_FEM(const std::vector<go::Node> &nodes, const std::vector<go::Node> &bc_nodes, const Fem::GlobalData &conf, const std::vector<go::Vertex> mesh);
+    std::vector<Tri_ref> write_to_FEM(const std::vector<go::Node> &nodes, const std::vector<go::Vertex> &tri_mesh);
+    void print_mesh(const std::vector<go::Node> &nodes, std::vector<Tri_ref> tri_refs);
+    void write_to_FEM(const std::vector<go::Node> &nodes, const std::vector<go::Node> &bc_nodes, const Fem::GlobalData &conf, const std::vector<go::Triangle> mesh);
 }
+    */

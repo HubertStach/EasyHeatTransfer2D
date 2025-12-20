@@ -3,7 +3,7 @@
 #include <stdexcept>
 
 #include "gauss.h"
-
+/*
 std::vector<double> Gauss(Fem::Matrix& A, std::vector<double>& b) {
     int n = A.getRows();
     Fem::Matrix augmentedMatrix = A;
@@ -38,8 +38,8 @@ std::vector<double> Gauss(Fem::Matrix& A, std::vector<double>& b) {
 
     return b;
 }
+*/
 
-/*
 std::vector<double> Gauss(Fem::Matrix& A, std::vector<double>& b) {
     int n = A.getRows();
     if ((int)b.size() != n) {
@@ -96,4 +96,4 @@ std::vector<double> Gauss(Fem::Matrix& A, std::vector<double>& b) {
         b[i] = xi;
     }
     return b;
-}*/
+}
