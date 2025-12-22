@@ -24,19 +24,6 @@ namespace Fem {
     std::vector<float> dNdxi = {-1, 1, 0};
     std::vector<float> dNdeta = {-1, 0, 1};
 
-    float N1(float xi, float eta)
-    {
-        return 1-xi-eta;
-    }
-    float N2(float xi, float eta)
-    {
-        return xi;
-    }
-    float N3(float xi, float eta)
-    {
-        return eta;
-    }
-
     void showProgress(int current, int max)
     {
         if (max <= 0) return;
@@ -64,6 +51,134 @@ namespace Fem {
         if (current >= max) {
             std::cout << std::endl;
         }
+    }
+
+    float Element::N1(float x, float y, std::vector<Node> &nodes) {
+        float x1, x2, x3, y1, y2, y3;
+        x1 = nodes[this->node_ids[0]].x;
+        y1 = nodes[this->node_ids[0]].y;
+        x2 = nodes[this->node_ids[1]].x;
+        y2 = nodes[this->node_ids[1]].y;
+        x3 = nodes[this->node_ids[2]].x;
+        y3 = nodes[this->node_ids[2]].y;
+
+        const float half_area = ((x2-x1)*(y3-y1))-((x3-x1)*(y2-y1));
+
+        return (((x3-x2)*(y-y2)-(x-x2)*(y3-y2)) / half_area);
+    }
+
+    float Element::N2(float x, float y, std::vector<Node> &nodes) {
+        float x1, x2, x3, y1, y2, y3;
+        x1 = nodes[this->node_ids[0]].x;
+        y1 = nodes[this->node_ids[0]].y;
+        x2 = nodes[this->node_ids[1]].x;
+        y2 = nodes[this->node_ids[1]].y;
+        x3 = nodes[this->node_ids[2]].x;
+        y3 = nodes[this->node_ids[2]].y;
+
+        const float half_area = ((x2-x1)*(y3-y1))-((x3-x1)*(y2-y1));
+
+        return (((x1-x3)*(y-y3)-(x-x3)*(y1-y3)) / half_area);
+    }
+
+    float Element::N3(float x, float y, std::vector<Node> &nodes) {
+        float x1, x2, x3, y1, y2, y3;
+        x1 = nodes[this->node_ids[0]].x;
+        y1 = nodes[this->node_ids[0]].y;
+        x2 = nodes[this->node_ids[1]].x;
+        y2 = nodes[this->node_ids[1]].y;
+        x3 = nodes[this->node_ids[2]].x;
+        y3 = nodes[this->node_ids[2]].y;
+
+        const float half_area = ((x2-x1)*(y3-y1))-((x3-x1)*(y2-y1));
+
+        return (((x2-x1)*(y-y1)-(x-x1)*(y2-y1)) / half_area);
+    }
+
+    float Element::dN1dx(std::vector<Node> &nodes) {
+        float x1, x2, x3, y1, y2, y3;
+
+        x1 = nodes[this->node_ids[0]].x;
+        y1 = nodes[this->node_ids[0]].y;
+        x2 = nodes[this->node_ids[1]].x;
+        y2 = nodes[this->node_ids[1]].y;
+        x3 = nodes[this->node_ids[2]].x;
+        y3 = nodes[this->node_ids[2]].y;
+
+        const float half_area = ((x2-x1)*(y3-y1))-((x3-x1)*(y2-y1));
+
+        return ((y2-y3)/half_area);
+    }
+
+    float Element::dN2dx(std::vector<Node> &nodes) {
+        float x1, x2, x3, y1, y2, y3;
+
+        x1 = nodes[this->node_ids[0]].x;
+        y1 = nodes[this->node_ids[0]].y;
+        x2 = nodes[this->node_ids[1]].x;
+        y2 = nodes[this->node_ids[1]].y;
+        x3 = nodes[this->node_ids[2]].x;
+        y3 = nodes[this->node_ids[2]].y;
+
+        const float half_area = ((x2-x1)*(y3-y1))-((x3-x1)*(y2-y1));
+
+        return ((y3-y1)/half_area);
+    }
+
+    float Element::dN3dx(std::vector<Node> &nodes) {
+        float x1, x2, x3, y1, y2, y3;
+
+        x1 = nodes[this->node_ids[0]].x;
+        y1 = nodes[this->node_ids[0]].y;
+        x2 = nodes[this->node_ids[1]].x;
+        y2 = nodes[this->node_ids[1]].y;
+        x3 = nodes[this->node_ids[2]].x;
+        y3 = nodes[this->node_ids[2]].y;
+
+
+        return ((y1-y2)/(((x2-x1)*(y3-y1))-((x3-x1)*(y2-y1))));
+    }
+
+    float Element::dN1dy(std::vector<Node> &nodes) {
+        float x1, x2, x3, y1, y2, y3;
+
+        x1 = nodes[this->node_ids[0]].x;
+        y1 = nodes[this->node_ids[0]].y;
+        x2 = nodes[this->node_ids[1]].x;
+        y2 = nodes[this->node_ids[1]].y;
+        x3 = nodes[this->node_ids[2]].x;
+        y3 = nodes[this->node_ids[2]].y;
+
+
+        return ((x3-x2)/(((x2-x1)*(y3-y1))-((x3-x1)*(y2-y1))));
+    }
+
+    float Element::dN2dy(std::vector<Node> &nodes) {
+        float x1, x2, x3, y1, y2, y3;
+
+        x1 = nodes[this->node_ids[0]].x;
+        y1 = nodes[this->node_ids[0]].y;
+        x2 = nodes[this->node_ids[1]].x;
+        y2 = nodes[this->node_ids[1]].y;
+        x3 = nodes[this->node_ids[2]].x;
+        y3 = nodes[this->node_ids[2]].y;
+
+
+        return ((x1-x3)/(((x2-x1)*(y3-y1))-((x3-x1)*(y2-y1))));
+    }
+
+    float Element::dN3dy(std::vector<Node> &nodes) {
+        float x1, x2, x3, y1, y2, y3;
+
+        x1 = nodes[this->node_ids[0]].x;
+        y1 = nodes[this->node_ids[0]].y;
+        x2 = nodes[this->node_ids[1]].x;
+        y2 = nodes[this->node_ids[1]].y;
+        x3 = nodes[this->node_ids[2]].x;
+        y3 = nodes[this->node_ids[2]].y;
+
+
+        return ((x2-x1)/(((x2-x1)*(y3-y1))-((x3-x1)*(y2-y1))));
     }
 
     std::vector<Node> load_nodes(std::string file_name)
@@ -209,7 +324,7 @@ namespace Fem {
                 std::istringstream iss(line);
                 if (iss >> node_id >> comma >> flux >> comma >> alfa >> comma >> t_ext) {
                     BC_node temp_bc(node_id, flux, alfa, t_ext);
-                    nodes[node_id-1].bc = temp_bc;
+                    nodes[node_id].bc = temp_bc;
                 }
                 else {
                     std::cout << "Failed to parse line: " << line << "\n"; // Debug output
@@ -241,113 +356,77 @@ namespace Fem {
         return sqrt(pow( a.x - b.x,2)+pow(a.y - b.y,2));
     }
 
-    Matrix calc_jacobian_mat(Element &element, std::vector<Node> &nodes){
-        Matrix jacobian(2,2);
-
-        Node n1 = nodes[element.node_ids[0]-1];
-        Node n2 = nodes[element.node_ids[1]-1];
-        Node n3 = nodes[element.node_ids[2]-1];
-
-        jacobian[0][0] = n2.x-n1.x;
-        jacobian[0][1] = n3.x-n1.x;
-        jacobian[1][0] = n2.y-n1.y;
-        jacobian[1][1] = n3.y-n1.y;
-
-        return jacobian;
-    }
-
-    float calc_jacobian(Matrix &J){
-        return (J[0][0]*J[1][1])-(J[1][0]*J[0][1]);
-    }
-
-    Matrix inverse_jacobian_matrix(Matrix &J){
-        float inv_det_J = 1/calc_jacobian(J);
-
-        Matrix inv_jac(2,2);
-
-        inv_jac[0][0] = inv_det_J*J[1][1];
-        inv_jac[1][1] = inv_det_J*J[0][0];
-        inv_jac[1][0] = -inv_det_J*J[1][0];
-        inv_jac[0][1] = -inv_det_J*J[0][1];
-
-        return inv_jac;
-    }
-
-    Matrix calc_local_H(Element &local_el, std::vector<Node> &nodes, 
-        float conductivity)
+    Matrix calc_local_H(Element &local_el, std::vector<Node> &nodes, float conductivity)
     {
-        Matrix J = calc_jacobian_mat(local_el, nodes);
-        double detJ = calc_jacobian(J);
-        Matrix invJ = inverse_jacobian_matrix(J);
-
         Matrix dNdx(3,1), dNdy(3,1);
-        for(int i=0; i<3; ++i){
-            dNdx[i][0] = invJ[0][0]*dNdxi[i] + invJ[0][1]*dNdeta[i];
-            dNdy[i][0] = invJ[1][0]*dNdxi[i] + invJ[1][1]*dNdeta[i];
-        }
+
+        dNdx[0][0] = local_el.dN1dx(nodes);
+        dNdx[1][0] = local_el.dN2dx(nodes);
+        dNdx[2][0] = local_el.dN3dx(nodes);
+        dNdy[0][0] = local_el.dN1dy(nodes);
+        dNdy[1][0] = local_el.dN2dy(nodes);
+        dNdy[2][0] = local_el.dN3dy(nodes);
+
+        float x1 = nodes[local_el.node_ids[0]].x;
+        float y1 = nodes[local_el.node_ids[0]].y;
+        float x2 = nodes[local_el.node_ids[1]].x;
+        float y2 = nodes[local_el.node_ids[1]].y;
+        float x3 = nodes[local_el.node_ids[2]].x;
+        float y3 = nodes[local_el.node_ids[2]].y;
+
+        float D = (x2-x1)*(y3-y1) - (x3-x1)*(y2-y1);
+        float Area = std::abs(D) / 2.0f;
 
         Matrix H_local = (dNdx*dNdx.transpose()) + (dNdy*dNdy.transpose());
 
-        double area = 0.5 * std::fabs(detJ);
-        double scale = conductivity * area;
-
-        for(int i=0; i<3; ++i)
-            for(int j=0; j<3; ++j)
-                H_local[i][j] *= scale;
+        for(int i=0; i<3; ++i) {
+            for(int j=0; j<3; ++j) {
+                H_local[i][j] *= conductivity*Area;
+            }
+        }
 
         return H_local;
     }
 
     Matrix calc_local_Hbc(Element &local_el, std::vector<Node> &nodes)
     {
-        Matrix hbc(3,3);
+        Matrix hbc(3, 3); // Zakładam, że konstruktor wypełnia macierz zerami
 
-        for(int i=0; i<3; i++){//pętla po bokach
+        for (int i = 0; i < 3; i++) { // pętla po bokach trójkąta
+            int id1 = local_el.node_ids[i];
+            int id2 = local_el.node_ids[(i + 1) % 3];
 
-            //odejmujemy tutaj 1 od id żeby mieć przeniesienia
-            //z indeksowania o bazie 1, które jest w elemencie
-            //na indeksowanie z bazą 0, które jest w vector nodes
-            int id1 = local_el.node_ids[i]-1;
-            int id2 = local_el.node_ids[(i+1)%3]-1;
-            
             if (!(nodes[id1].bc.exist && nodes[id2].bc.exist)) continue;
 
             float alfa = nodes[id1].bc.alfa;
-            double det_J = 0.5*dist(nodes[id1], nodes[id2]);
-            Matrix hbc_i(3,3);
+            double dx = nodes[id2].x - nodes[id1].x;
+            double dy = nodes[id2].y - nodes[id1].y;
+            double L = std::sqrt(dx * dx + dy * dy);
 
-            for(int j=0; j<3; j++){//pętla po pc
-                int k = i*3;
-                //std::cout<<"k = "<<k<<"\n";
-                //std::cout<<"k+j = "<<k+j<<"\n";
-                Matrix h_pc(3,1);
-                h_pc[0][0] = n1_bc_val[j+k];
-                h_pc[1][0] = n2_bc_val[j+k];
-                h_pc[2][0] = n3_bc_val[j+k];
+            double factor = (alfa * L) / 6.0;
 
-                Matrix h_pc_temp(3,3);
+            switch (i) {
+                case 0:
+                    hbc[0][0] += 2 * factor;
+                    hbc[0][1] += 1 * factor;
+                    hbc[1][0] += 1 * factor;
+                    hbc[1][1] += 2 * factor;
+                    break;
 
-                h_pc_temp = h_pc*h_pc.transpose();
+                case 1:
+                    hbc[1][1] += 2 * factor;
+                    hbc[1][2] += 1 * factor;
+                    hbc[2][1] += 1 * factor;
+                    hbc[2][2] += 2 * factor;
+                    break;
 
-                //std::cout<<h_pc_temp;
-                
-                for(int a=0; a<3; a++){
-                    for(int b=0; b<3; b++){
-                        h_pc_temp[a][b] *= weights_bc[j];
-                    }
-                }
-
-                hbc_i = hbc_i + h_pc_temp;
+                case 2:
+                    hbc[2][2] += 2 * factor;
+                    hbc[2][0] += 1 * factor;
+                    hbc[0][2] += 1 * factor;
+                    hbc[0][0] += 2 * factor;
+                    break;
             }
-            
-            for(int i=0; i<3; i++){
-                for(int j=0; j<3; j++){
-                    hbc_i[i][j] *= det_J*alfa;
-                }
-            }
-
-            //std::cout<<hbc_i<<"\n";
-            hbc = hbc+hbc_i;
         }
 
         return hbc;
@@ -355,92 +434,81 @@ namespace Fem {
 
     Matrix calc_p_vec(Element &local_el, std::vector<Node> &nodes)
     {
-        Matrix p_vec(3,1);
+        Matrix p_vec(3, 1);
 
-        for(int edge =0; edge<3; edge++){
-            int id1 = local_el.node_ids[edge]-1;
-            int id2 = local_el.node_ids[(edge+1)%3]-1;
-            
+        for (int edge = 0; edge < 3; edge++) {
+            int local_idx1 = edge;
+            int local_idx2 = (edge + 1) % 3;
+
+            int id1 = local_el.node_ids[local_idx1];
+            int id2 = local_el.node_ids[local_idx2];
+
             if (!(nodes[id1].bc.exist && nodes[id2].bc.exist)) continue;
 
-            //W.B. Robina
             float t_ext = nodes[id1].bc.t_ext;
             float alfa = nodes[id1].bc.alfa;
-
-            //W.B. Neumanna;
             float flux = nodes[id1].bc.flux;
 
-            double det_J = 0.5*dist(nodes[id1], nodes[id2]);
+            double dx = nodes[id2].x - nodes[id1].x;
+            double dy = nodes[id2].y - nodes[id1].y;
+            double L = std::sqrt(dx * dx + dy * dy);
 
-            Matrix p_edge(3,1);
+            double total_flux = (alfa * t_ext) + flux;
+            double contribution = (total_flux * L) / 2.0;
 
-            for(int pc=0; pc<3;pc++){//pętla po pc na jednym boku
-                int k = edge*3;//upewniamy się że przechodzimy przez wszystkie 9 boków
+            switch (edge) {
+                case 0: // Bok 0-1
+                    p_vec[0][0] += contribution;
+                    p_vec[1][0] += contribution;
+                    break;
 
-                Matrix NS(3,1);
-                NS[0][0] = n1_bc_val[pc+k];
-                NS[1][0] = n2_bc_val[pc+k];
-                NS[2][0] = n3_bc_val[pc+k];
+                case 1: // Bok 1-2
+                    p_vec[1][0] += contribution;
+                    p_vec[2][0] += contribution;
+                    break;
 
-                for(int i=0; i<3; i++){
-                    p_edge[i][0] += NS[i][0]*t_ext*weights_bc[pc];
-                }
-            }
-            
-            //W.B. Robina
-            for(int i=0; i<3; i++){
-                p_vec[i][0] += p_edge[i][0]*alfa*det_J;
-            }
-
-            //W.B. Neumanna
-
-            for(int i=0; i<3; i++){
-                p_vec[i][0] += p_edge[i][0]*det_J*flux;
+                case 2: // Bok 2-0
+                    p_vec[2][0] += contribution;
+                    p_vec[0][0] += contribution;
+                    break;
             }
         }
 
         return p_vec;
     }
 
-    Matrix calc_c(Element &local_el, std::vector<Node> &nodes, 
-        float density, float specific_heat)
+    Matrix calc_c(Element &local_el, std::vector<Node> &nodes, float density, float specific_heat)
     {
-        Matrix c_mat(3,3);
-        Matrix el_jac = calc_jacobian_mat(local_el, nodes);
-        float det_J = calc_jacobian(el_jac);
-        //std::cout<<det_J<<"\n";
+        Matrix c_matrix(3, 3);
 
-        for(int i=0; i<3; i++){
-            Matrix c_i(3,1);
-            c_i[0][0] = N1(pc_xi[i], pc_eta[i]);
-            c_i[1][0] = N2(pc_xi[i], pc_eta[i]);
-            c_i[2][0] = N3(pc_xi[i], pc_eta[i]);
+        float x1 = nodes[local_el.node_ids[0]].x;
+        float y1 = nodes[local_el.node_ids[0]].y;
+        float x2 = nodes[local_el.node_ids[1]].x;
+        float y2 = nodes[local_el.node_ids[1]].y;
+        float x3 = nodes[local_el.node_ids[2]].x;
+        float y3 = nodes[local_el.node_ids[2]].y;
 
-            //std::cout<<c_i<<"\n";
-            Matrix c_temp = c_i*c_i.transpose();
-            //std::cout<<"Before\n"<<c_temp<<"\n";
+        float D = (x2-x1)*(y3-y1) - (x3-x1)*(y2-y1);
+        float Area = std::abs(D) / 2.0f;
 
-            double A = 0.5*std::fabs(det_J);
+        float factor = (density * specific_heat * Area) / 12.0f;
 
-            for(int j=0; j<3; j++){
-                for(int k=0; k<3; k++){
-                    c_temp[j][k] *= weights_pc[i]*A*density*specific_heat;
-                }
-            }
-            //std::cout<<"After\n"<<c_temp<<"\n";
+        c_matrix[0][0] = 2.0f * factor;
+        c_matrix[1][1] = 2.0f * factor;
+        c_matrix[2][2] = 2.0f * factor;
 
-            c_mat = c_mat + c_temp;
-            //std::cout<<c_mat<<"\n";
-        }
+        c_matrix[0][1] = c_matrix[1][0] = 1.0f * factor;
+        c_matrix[0][2] = c_matrix[2][0] = 1.0f * factor;
+        c_matrix[1][2] = c_matrix[2][1] = 1.0f * factor;
 
-        return c_mat;
+        return c_matrix;
     }
 
     void aggregate(Matrix &Global, Element element, Matrix &Local){
         for(int i=0; i<3;i++){
             for(int j=0; j<3;j++){
-                int glob_i = element.node_ids[i]-1;
-                int glob_j = element.node_ids[j]-1;
+                int glob_i = element.node_ids[i];
+                int glob_j = element.node_ids[j];
                 Global[glob_i][glob_j] += Local[i][j]; 
             }
         }
@@ -448,7 +516,7 @@ namespace Fem {
 
     void aggregate_p_vec(Matrix &P_vec, Element element, Matrix &Local){
         for(int i=0; i<3; i++){
-            int glob_i = element.node_ids[i]-1;
+            int glob_i = element.node_ids[i];
             P_vec[glob_i][0] += Local[i][0];
 
         }
@@ -459,7 +527,7 @@ namespace Fem {
 
         std::ostringstream fname;
         fname << "sol_" << step << ".vtu";
-        const std::string path = "../Data/"+fname.str();
+        const std::string path = "Data/"+fname.str();
 
         std::ofstream out(path);
         if (!out.is_open()) {
@@ -488,9 +556,9 @@ namespace Fem {
             "        <DataArray type=\"Int32\" Name=\"connectivity\" format=\"ascii\">\n";
         for (auto& e : elements) {
             out << "          "
-                << (e.node_ids[0] - 1) << " "
-                << (e.node_ids[1] - 1) << " "
-                << (e.node_ids[2] - 1) << "\n";
+                << (e.node_ids[0]) << " "
+                << (e.node_ids[1]) << " "
+                << (e.node_ids[2]) << "\n";
         }
         out << "        </DataArray>\n"
             "        <DataArray type=\"Int32\" Name=\"offsets\" format=\"ascii\">\n";
@@ -538,7 +606,8 @@ namespace Fem {
                 Global[i][j] = Global_H[i][j] + (Global_C[i][j] / conf.time_step);
             }
         }
-        
+
+        std::cout<<"Beginning time integration...\n";
         for(float i=conf.time_step; i<conf.total_time; i+=conf.time_step){
             for(int j=0; j<conf.node_number; j++){
                 double rhs = 0;
@@ -557,6 +626,8 @@ namespace Fem {
             if(write_vtu){
                 write_to_vtu_file((int)i, nodes, t, elements);
             }
+
+            showProgress(i, conf.total_time);
 
             t0=t;
         }

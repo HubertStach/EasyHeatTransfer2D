@@ -79,13 +79,22 @@ void geo::Mesh::pop_point()
         this->triangles.clear();
         this->nodes.clear();
         this->edges.clear();
+        this->initial_bc_nodes.clear();
         mesh_created = false;
     }
 
-    if(this->nodes.size()>0){
+    if(!this->nodes.empty()){
         this->nodes.pop_back();
         this->initial_bc_nodes.pop_back();
     }
+
+    /* Problem: po usunięciu jednego punktu
+        wszystkie inne punkty się usuwają
+        ale draw_edges i tak rysuje zapisane w pamięci
+        punkty brzegowe
+
+        chwilowa naprawa: pop_point będzie czyścić wszystko
+     */
 }
 
 //------------------- wyświetlanie -------------------
@@ -109,13 +118,9 @@ void geo::Mesh::draw_nodes(float size)
 }
 
 void geo::Mesh::draw_edges()
-{   
-    size_t init_bc_size = this->initial_bc_nodes.size();
-    if(init_bc_size==1 ||init_bc_size==0){return;}//nie da się narysować linii
-
-    if(init_bc_size < 1){ 
-        return;
-    }
+{
+    const size_t init_bc_size = this->initial_bc_nodes.size();
+    if(init_bc_size==1 ||init_bc_size==0){return;} //nie da się narysować linii
     
     if(!this->mesh_created){
         for(size_t i =0; i< init_bc_size; i++){
@@ -131,17 +136,18 @@ void geo::Mesh::draw_edges()
         }
     }
 }
+
 void geo::Mesh::draw_tr()
 {
     for (const geo::Triangle& tr : this->triangles) {
-        
-        geo::Node& node1 = this->nodes[tr.node_ids[0]];
-        geo::Node& node2 = this->nodes[tr.node_ids[1]];
-        geo::Node& node3 = this->nodes[tr.node_ids[2]];
 
-        Vector2 pos1 = { node1.x, node1.y };
-        Vector2 pos2 = { node2.x, node2.y };
-        Vector2 pos3 = { node3.x, node3.y };
+        const geo::Node& node1 = this->nodes[tr.node_ids[0]];
+        const geo::Node& node2 = this->nodes[tr.node_ids[1]];
+        const geo::Node& node3 = this->nodes[tr.node_ids[2]];
+
+        const Vector2 pos1 = { node1.x, node1.y };
+        const Vector2 pos2 = { node2.x, node2.y };
+        const Vector2 pos3 = { node3.x, node3.y };
 
         DrawLineV(pos1, pos2, WHITE);
         DrawLineV(pos2, pos3, WHITE);
@@ -160,15 +166,15 @@ float geo::len(geo::Node A, geo::Node B){
 }
 
 float geo::tr_size(geo::Triangle &tr, std::vector<geo::Node> nodes){
-    geo::Node A = nodes[tr.node_ids[0]];
-    geo::Node B = nodes[tr.node_ids[1]];
-    geo::Node C = nodes[tr.node_ids[2]];
+    const geo::Node A = nodes[tr.node_ids[0]];
+    const geo::Node B = nodes[tr.node_ids[1]];
+    const geo::Node C = nodes[tr.node_ids[2]];
 
-    float a = len(A, B);
-    float b = len(B, C);
-    float c = len(C, A);
+    const float a = len(A, B);
+    const float b = len(B, C);
+    const float c = len(C, A);
 
-    return 0.25*(std::sqrt((a+b+c)*(-a+b+c)*(a-b+c)*(a+b-c)));
+    return 0.25f*(std::sqrt((a+b+c)*(-a+b+c)*(a-b+c)*(a+b-c)));
 }
 
 void geo::Mesh::interpolate_bc_points(float spacing)
@@ -290,9 +296,9 @@ bool geo::Mesh::same_triangle(geo::Triangle A, geo::Triangle B )
 
     int matches = 0;
         
-    for (int i = 0; i < 3; i++) {
-        for (int j = 0; j < 3; j++) {
-            if ((A.node_ids[i] == B.node_ids[j]) && (A.node_ids[i] == B.node_ids[j])) {
+    for (const int node_id : A.node_ids) {
+        for (const int j : B.node_ids) {
+            if ((node_id == j) && (node_id == j)) {
                 matches++;
                 break;
             }

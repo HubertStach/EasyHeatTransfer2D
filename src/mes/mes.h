@@ -57,6 +57,7 @@ namespace Fem{
     struct Element{
         int id;
         int node_ids[3];
+        float area;
 
         Matrix H_local;
         Matrix H_bc;
@@ -68,21 +69,17 @@ namespace Fem{
             this->node_ids[1] = n2;
             this->node_ids[2] = n3;
         }
-    };
 
-    struct Ref_triangle{
-        std::vector<float> dNdxi = {-1, 1, 0};
-        std::vector<float> dNdeta = {-1, 0, 1};
+        float N1(float x, float y, std::vector<Node> &nodes);
+        float N2(float x, float y, std::vector<Node> &nodes);
+        float N3(float x, float y, std::vector<Node> &nodes);
 
-        float N1(float xi, float eta){
-            return 1-xi-eta;
-        }
-        float N2(float xi, float eta){
-            return xi;
-        }
-        float N3(float xi, float eta){
-            return eta;
-        }
+        float dN1dx(std::vector<Node> &nodes);
+        float dN2dx(std::vector<Node> &nodes);
+        float dN3dx(std::vector<Node> &nodes);
+        float dN1dy(std::vector<Node> &nodes);
+        float dN2dy(std::vector<Node> &nodes);
+        float dN3dy(std::vector<Node> &nodes);
     };
 
     std::vector<Fem::Node> load_nodes(std::string file_name);
@@ -100,12 +97,12 @@ namespace Fem{
         int elem_number;
 
         GlobalData(){
-            this->total_time=0;
-            this->time_step=0;
-            this->conductivity=0;
+            this->total_time=100;
+            this->time_step=1;
+            this->conductivity=25;
             this->init_temperature=0;
-            this->density=0;
-            this->specific_heat=0;
+            this->density=7800;
+            this->specific_heat=700;
             this->node_number=0;
             this->elem_number=0;
         }
@@ -136,15 +133,15 @@ namespace Fem{
         
         Solution(std::string filename): Global_H(3,3), Global_C(3,3), Global_P(3,1)
         {
-            std::string filepath = "../" + filename;
-
-            this->nodes = load_nodes(filepath);
-            this->nodes = load_bc(filepath, this->nodes);
-            this->elements = load_elements(filepath);
+            std::string filepath = filename;
             this->conf = load_configuration(filepath);
-
-            this->conf.node_number = this->nodes.size();
-            this->conf.elem_number= this->elements.size();
+            //std::cout<<"loaded config\n";
+            this->nodes = load_nodes(filepath);
+            //std::cout<<"loaded nodes, nodes size = "<<nodes.size()<<std::endl;
+            this->elements = load_elements(filepath);
+            //std::cout<<"loaded elements, elements size = "<<elements.size()<<std::endl;
+            this->nodes = load_bc(filepath, this->nodes);
+            //std::cout<<"loaded BC\n";
 
             print_config(this->conf);
 

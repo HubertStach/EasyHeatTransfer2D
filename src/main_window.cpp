@@ -7,7 +7,6 @@
 #include "../include/raymath.h"
 
 #include <vector>
-#include <future>
 
 #include "app_ui/axis.h"
 #include "app_ui/grid.h"
@@ -15,6 +14,8 @@
 #include "mes/mes.h"
 #include "mesh/geometry.h"
 //#include "mesh/mesh.h"
+
+#include "saving_data.h"
 #include "main_window.h"
 
 MainWindow::MainWindow()
@@ -55,74 +56,70 @@ MainWindow::MainWindow()
             camera.target = { 0.0f, 0.0f };
         }
 
-        if (ImGui::CollapsingHeader("Mesh Creation"), 1){
-            ImGui::BeginChild("##child1", ImVec2(0, 200), true);
-            ImGui::Checkbox("Create mesh", &creatingMesh);
-            ImGui::Text("Press E to place point");
-            ImGui::Text("Press Q to pop points");
-            ImGui::Text("Press Enter to create mesh");
+        ImGui::BeginChild("##child1", ImVec2(0, 200), true);
+        ImGui::Text("Mesh settings");
+        ImGui::Checkbox("Create mesh", &creatingMesh);
+        ImGui::Text("Press E to place point.");
+        ImGui::Text("Press Q to pop points");
+        ImGui::Text("Press Enter to create mesh.");
 
-            if (ImGui::Button("Reset nodes")){
-                //resetowanie siatki
-                mesh.nodes.clear();
-                mesh.triangles.clear();
-                mesh.edges.clear();
-            }
+        if (ImGui::Button("Reset nodes")){
+            //resetowanie siatki
+            mesh.nodes.clear();
+            mesh.triangles.clear();
+            mesh.edges.clear();
+        }
 
-            if (ImGui::CollapsingHeader("Mesh options"))
-            {
-
-                ImGui::BeginChild("##child3", ImVec2(0, 150), true);
-                ImGui::Text("Node spacing density");
-                ImGui::SliderFloat("##", &spacing, 0.5f, 5.0f);
-
-                ImGui::EndChild();
-            }
+        if (ImGui::CollapsingHeader("Mesh options")){
+            ImGui::BeginChild("##child3", ImVec2(0, 150), true);
+            ImGui::Text("Node spacing density");
+            ImGui::SliderFloat("##", &spacing, 0.5f, 5.0f);
 
             ImGui::EndChild();
         }
 
-        if (ImGui::CollapsingHeader("Solver options"))
-        {
-            ImGui::BeginChild("##child2", ImVec2(0, 200), true);
-            ImGui::Text("Input solver data below");
+        ImGui::EndChild();
+        ImGui::BeginChild("##child2", ImVec2(0, 200), true);
+        ImGui::Text("Input solver data below");
 
-            ImGui::Text("Total time");
-            ImGui::InputFloat("s", &configuration.total_time);
-            ImGui::Text("Time step");
-            ImGui::InputFloat("s deltaT", &configuration.time_step);
-            ImGui::Text("Conductivity");
-            ImGui::InputFloat("W/mk", &configuration.conductivity);
-            ImGui::Text("Initial temperature");
-            ImGui::InputFloat("°C T0", &configuration.init_temperature);
-            ImGui::Text("Density");
-            ImGui::InputFloat("kg/m^3", &configuration.density);
-            ImGui::Text("Speific hest");
-            ImGui::InputFloat("J/kgK", &configuration.specific_heat);
+        ImGui::Text("Total time");
+        ImGui::InputFloat("s", &configuration.total_time);
+        ImGui::Text("Time step");
+        ImGui::InputFloat("s deltaT", &configuration.time_step);
+        ImGui::Text("Conductivity");
+        ImGui::InputFloat("W/mk", &configuration.conductivity);
+        ImGui::Text("Initial temperature");
+        ImGui::InputFloat("°C T0", &configuration.init_temperature);
+        ImGui::Text("Density");
+        ImGui::InputFloat("kg/m^3", &configuration.density);
+        ImGui::Text("Speific hest");
+        ImGui::InputFloat("J/kgK", &configuration.specific_heat);
 
-            if (ImGui::Button("Save")){
-                std::cout<<"Save clicked\n";
-                if(mesh_created){
-                    
-                }
+        if (ImGui::Button("Save")){
+            //std::cout<<"Save clicked\n";
+            if(mesh_created){
+               save_fem_data(mesh, configuration);
             }
+        }
 
             
-            if (ImGui::Button("Solve")){
+        if (ImGui::Button("Solve")){
+            if (mesh_created) {
                 try{
-                    //Fem::Solution solution(DATA_DIR "/fem_data.txt");
-                    //solution.solve(false, true);
+                    Fem::Solution solution("Data/fem_data.txt");
+                    solution.solve(true, true);
                 } catch(...){
                     std::cout<<"error occured\n";
                 }
-                
             }
-            
-            ImGui::EndChild();
+            else {
+                std::cout<<"Create mesh first\n";
+            }
         }
+            
+        ImGui::EndChild();
 
-        if (ImGui::CollapsingHeader("Options"))
-        {
+        if (ImGui::CollapsingHeader("Options")){
 
             ImGui::BeginChild("##child4", ImVec2(0, 200), true);
             ImGui::Checkbox("Show XY", &showXY);
@@ -204,7 +201,6 @@ MainWindow::MainWindow()
 
             //rysowanie punktów i wielokątów
             mesh.draw_edges();
-            std::cout<<mesh.initial_bc_nodes.size()<<"\n";
             mesh.draw_tr();
             mesh.draw_nodes(3*(1/camera.zoom));
 
@@ -234,12 +230,14 @@ MainWindow::MainWindow()
                //usuwanie punktu
                mesh.pop_point();
                mesh.mesh_created=false;
+                mesh_created=false;
                //std::cout<<mesh.nodes.size()<<"\n";
             }
 
             if(IsKeyPressed(KEY_ENTER)){
                 //tworzenie siatki
                 mesh.create_mesh(spacing);
+                mesh_created = true;
             }
         }
 
