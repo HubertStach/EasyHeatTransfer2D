@@ -1,16 +1,26 @@
 #pragma once
 #include <vector>
 
+#include "raylib.h"
+
 
 namespace geo{
+    struct Bc {
+        bool is_bc=false;
+        float flux=0.0f;
+        float alfa=0.0f;
+        float t_ext=0.0f;
+    };
     
     struct Node{
         float x;
         float y;
-        bool is_bc;
+        Bc bc;
+        Color color = RED;
 
         Node();
         Node(float x, float y);
+        Node(float x, float y, bool is_bc);
     };
 
     struct Edge{
@@ -71,4 +81,6 @@ namespace geo{
 
     float len(geo::Node A, geo::Node B);
     float tr_size(geo::Triangle &tr, std::vector<geo::Node> nodes);
+    int get_node_clicked(const std::vector<geo::Node> &nodes, float x_pos, float y_pos);
 }
+

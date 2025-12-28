@@ -30,7 +30,7 @@ void save_fem_data(geo::Mesh &mesh, Fem::GlobalData conf) {
     // 2.1 zapis punktów
     plik << "*Nodes\n";
     for (size_t i = 0; i < mesh.nodes.size(); i++) {
-        plik << i << ", " << mesh.nodes[i].x << ", " << mesh.nodes[i].y << "\n";
+        plik << i << ", " << mesh.nodes[i].x*0.01f << ", " << mesh.nodes[i].y*0.01f << "\n";
     }
 
     // 2.2 zapis elementów
@@ -44,12 +44,10 @@ void save_fem_data(geo::Mesh &mesh, Fem::GlobalData conf) {
 
     // 2.3 zapis warunkow brzegowych
     plik << "*BC\n";
-    float neumann = 0.0f;
-    float alpha = 300.0f;
-    float t_ext = 1200.0f;
     for (size_t i = 0; i < mesh.nodes.size(); i++) {
-        if (mesh.nodes[i].is_bc) {
-            plik << i  << ", " << neumann << ", " << alpha << ", " << t_ext << "\n";
+        if (mesh.nodes[i].bc.is_bc) {
+            //plik << i  << ", " << mesh.nodes[i].bc.flux << ", " << mesh.nodes[i].bc.alfa << ", " << mesh.nodes[i].bc.t_ext << "\n";
+            plik << i  << ", " << 0 << ", " << 300 << ", " << 1200 << "\n";
         }
     }
 

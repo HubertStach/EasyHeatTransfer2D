@@ -19,7 +19,8 @@ struct MainWindow{
     //mesh options
     float spacing = 1.0f;
     bool mesh_created = false;
-    
+    bool setting_bcs = false;
+
     //main options
     float mouseSensitivity = 8.0f;
     float camera_base_zoom = 80.0f;

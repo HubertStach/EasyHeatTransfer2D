@@ -3,12 +3,11 @@
 #include "matrix/matrix.h"
 
 namespace Fem{
-    extern std::vector<float> dNdxi;
-    extern std::vector<float> dNdeta;
+    extern
 
-    extern float N1(float xi, float eta);
-    extern float N2(float xi, float eta);
-    extern float N3(float xi, float eta);
+    float N1(float xi, float eta);
+    float N2(float xi, float eta);
+    float N3(float xi, float eta);
 
     void showProgress(int current, int max);
 
@@ -70,10 +69,6 @@ namespace Fem{
             this->node_ids[2] = n3;
         }
 
-        float N1(float x, float y, std::vector<Node> &nodes);
-        float N2(float x, float y, std::vector<Node> &nodes);
-        float N3(float x, float y, std::vector<Node> &nodes);
-
         float dN1dx(std::vector<Node> &nodes);
         float dN2dx(std::vector<Node> &nodes);
         float dN3dx(std::vector<Node> &nodes);
@@ -97,10 +92,10 @@ namespace Fem{
         int elem_number;
 
         GlobalData(){
-            this->total_time=100;
-            this->time_step=1;
+            this->total_time=500;
+            this->time_step=50;
             this->conductivity=25;
-            this->init_temperature=0;
+            this->init_temperature=100;
             this->density=7800;
             this->specific_heat=700;
             this->node_number=0;

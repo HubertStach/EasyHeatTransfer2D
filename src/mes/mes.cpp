@@ -11,18 +11,13 @@
 #include "../gauss/gauss.h"
 
 namespace Fem {
-    std::vector<double> pc_xi = {0.1667, 0.6667, 0.1667};
-    std::vector<double> pc_eta = {0.1667, 0.1667, 0.6667};
-    std::vector<double> weights_pc = {1.0/6.0, 1.0/6.0, 1.0/6.0};
+    constexpr float bc_pc_xi[6] = {-0.57735f, 0.57735f, 0.57735f, -0.57735f, -1.0f, -1.0f};
+    constexpr float bc_pc_eta[6] = {-1.0f, -1.0f, -0.57735f, 0.57735f, 0.57735, -0.57735};
+    constexpr float bc_pc_w[6] = {1, 1, 1, 1, 1, 1};
 
-    std::vector<double> n1_bc_val = {0.8873, 0.5000, 0.1127, 0, 0, 0, 0.1127, 0.5000, 0.8873 };
-    std::vector<double> n2_bc_val = {0.1127, 0.5000, 0.8873, 0.8873, 0.5000, 0.1127, 0, 0, 0};
-    std::vector<double> n3_bc_val = {0, 0, 0, 0.1127, 0.5000, 0.8873, 0.8873, 0.5000, 0.1127,};
-
-    std::vector<double> weights_bc = {5.0/9.0, 8.0/9.0, 5.0/9.0};
-
-    std::vector<float> dNdxi = {-1, 1, 0};
-    std::vector<float> dNdeta = {-1, 0, 1};
+    constexpr float pc_xi[3] = {-2.0f/3.0f, -2.0f/3.0f, 1.0f/3.0f};
+    constexpr float pc_eta[3] = {-2.0f/3.0f, 1.0f/3.0f, -2.0f/3.0f};
+    constexpr float pc_w[3] = {2.0f/3.0f, 2.0f/3.0f, 2.0f/3.0f};
 
     void showProgress(int current, int max)
     {
@@ -52,47 +47,14 @@ namespace Fem {
             std::cout << std::endl;
         }
     }
-
-    float Element::N1(float x, float y, std::vector<Node> &nodes) {
-        float x1, x2, x3, y1, y2, y3;
-        x1 = nodes[this->node_ids[0]].x;
-        y1 = nodes[this->node_ids[0]].y;
-        x2 = nodes[this->node_ids[1]].x;
-        y2 = nodes[this->node_ids[1]].y;
-        x3 = nodes[this->node_ids[2]].x;
-        y3 = nodes[this->node_ids[2]].y;
-
-        const float half_area = ((x2-x1)*(y3-y1))-((x3-x1)*(y2-y1));
-
-        return (((x3-x2)*(y-y2)-(x-x2)*(y3-y2)) / half_area);
+    float N1(float xi, float eta) {
+        return -(xi+eta)*0.5f;
     }
-
-    float Element::N2(float x, float y, std::vector<Node> &nodes) {
-        float x1, x2, x3, y1, y2, y3;
-        x1 = nodes[this->node_ids[0]].x;
-        y1 = nodes[this->node_ids[0]].y;
-        x2 = nodes[this->node_ids[1]].x;
-        y2 = nodes[this->node_ids[1]].y;
-        x3 = nodes[this->node_ids[2]].x;
-        y3 = nodes[this->node_ids[2]].y;
-
-        const float half_area = ((x2-x1)*(y3-y1))-((x3-x1)*(y2-y1));
-
-        return (((x1-x3)*(y-y3)-(x-x3)*(y1-y3)) / half_area);
+    float N2(float xi, float eta) {
+        return 0.5f*(1+xi);
     }
-
-    float Element::N3(float x, float y, std::vector<Node> &nodes) {
-        float x1, x2, x3, y1, y2, y3;
-        x1 = nodes[this->node_ids[0]].x;
-        y1 = nodes[this->node_ids[0]].y;
-        x2 = nodes[this->node_ids[1]].x;
-        y2 = nodes[this->node_ids[1]].y;
-        x3 = nodes[this->node_ids[2]].x;
-        y3 = nodes[this->node_ids[2]].y;
-
-        const float half_area = ((x2-x1)*(y3-y1))-((x3-x1)*(y2-y1));
-
-        return (((x2-x1)*(y-y1)-(x-x1)*(y2-y1)) / half_area);
+    float N3(float xi, float eta) {
+        return 0.5f*(1+eta);
     }
 
     float Element::dN1dx(std::vector<Node> &nodes) {
@@ -381,7 +343,7 @@ namespace Fem {
 
         for(int i=0; i<3; ++i) {
             for(int j=0; j<3; ++j) {
-                H_local[i][j] *= conductivity*Area;
+                H_local[i][j] *= conductivity * Area;
             }
         }
 
@@ -390,87 +352,80 @@ namespace Fem {
 
     Matrix calc_local_Hbc(Element &local_el, std::vector<Node> &nodes)
     {
-        Matrix hbc(3, 3); // Zakładam, że konstruktor wypełnia macierz zerami
+        Matrix Hbc(3, 3);
 
         for (int i = 0; i < 3; i++) { // pętla po bokach trójkąta
             int id1 = local_el.node_ids[i];
             int id2 = local_el.node_ids[(i + 1) % 3];
 
-            if (!(nodes[id1].bc.exist && nodes[id2].bc.exist)) continue;
+            if (! (nodes[id1].bc.exist && nodes[id2].bc.exist)) continue;
 
-            float alfa = nodes[id1].bc.alfa;
-            double dx = nodes[id2].x - nodes[id1].x;
-            double dy = nodes[id2].y - nodes[id1].y;
-            double L = std::sqrt(dx * dx + dy * dy);
+            const float alfa = nodes[id1].bc.alfa;
+            const float detJ = 0.5f*dist(nodes[id1], nodes[id2]);
 
-            double factor = (alfa * L) / 6.0;
+            for (int pc=0; pc<2; ++pc) {
+                const int pc_aktualny = i*2+pc;
+                Matrix Ns(3,1);
 
-            switch (i) {
-                case 0:
-                    hbc[0][0] += 2 * factor;
-                    hbc[0][1] += 1 * factor;
-                    hbc[1][0] += 1 * factor;
-                    hbc[1][1] += 2 * factor;
-                    break;
+                Ns[0][0] = N1(bc_pc_xi[pc_aktualny], bc_pc_eta[pc_aktualny]);
+                Ns[1][0] = N2(bc_pc_xi[pc_aktualny], bc_pc_eta[pc_aktualny]);
+                Ns[2][0] = N3(bc_pc_xi[pc_aktualny], bc_pc_eta[pc_aktualny]);
 
-                case 1:
-                    hbc[1][1] += 2 * factor;
-                    hbc[1][2] += 1 * factor;
-                    hbc[2][1] += 1 * factor;
-                    hbc[2][2] += 2 * factor;
-                    break;
+                Matrix BTB = Ns*Ns.transpose();
 
-                case 2:
-                    hbc[2][2] += 2 * factor;
-                    hbc[2][0] += 1 * factor;
-                    hbc[0][2] += 1 * factor;
-                    hbc[0][0] += 2 * factor;
-                    break;
+                for (int row=0; row<3; ++row) {
+                    for (int col=0; col<3; ++col) {
+                        Hbc[row][col] += BTB[row][col]*bc_pc_w[pc_aktualny]*detJ*alfa;
+                    }
+                }
             }
         }
 
-        return hbc;
+        return Hbc;
     }
 
     Matrix calc_p_vec(Element &local_el, std::vector<Node> &nodes)
     {
         Matrix p_vec(3, 1);
 
-        for (int edge = 0; edge < 3; edge++) {
-            int local_idx1 = edge;
-            int local_idx2 = (edge + 1) % 3;
-
-            int id1 = local_el.node_ids[local_idx1];
-            int id2 = local_el.node_ids[local_idx2];
+        for (int i = 0; i < 3; i++) { // pętla po bokach trójkąta
+            const int id1 = local_el.node_ids[i];
+            const int id2 = local_el.node_ids[(i + 1) % 3];
 
             if (!(nodes[id1].bc.exist && nodes[id2].bc.exist)) continue;
 
-            float t_ext = nodes[id1].bc.t_ext;
-            float alfa = nodes[id1].bc.alfa;
-            float flux = nodes[id1].bc.flux;
+            const float detJ = 0.5f*dist(nodes[id1], nodes[id2]);
 
-            double dx = nodes[id2].x - nodes[id1].x;
-            double dy = nodes[id2].y - nodes[id1].y;
-            double L = std::sqrt(dx * dx + dy * dy);
+            //W.B. Neumanna
+            const float flux = nodes[id1].bc.flux;
 
-            double total_flux = (alfa * t_ext) + flux;
-            double contribution = (total_flux * L) / 2.0;
+            //W.B. Robina
+            const float alfa = nodes[id1].bc.alfa;
+            const float t_ext = nodes[id2].bc.t_ext;
 
-            switch (edge) {
-                case 0: // Bok 0-1
-                    p_vec[0][0] += contribution;
-                    p_vec[1][0] += contribution;
-                    break;
+            Matrix pvec_edge(3,1);
 
-                case 1: // Bok 1-2
-                    p_vec[1][0] += contribution;
-                    p_vec[2][0] += contribution;
-                    break;
+            for (int pc=0; pc<2; ++pc) {
+                int pc_aktualny = i*2+pc;
+                Matrix Ns(3,1);
 
-                case 2: // Bok 2-0
-                    p_vec[2][0] += contribution;
-                    p_vec[0][0] += contribution;
-                    break;
+                Ns[0][0] = N1(bc_pc_xi[pc_aktualny], bc_pc_eta[pc_aktualny]);
+                Ns[1][0] = N2(bc_pc_xi[pc_aktualny], bc_pc_eta[pc_aktualny]);
+                Ns[2][0] = N3(bc_pc_xi[pc_aktualny], bc_pc_eta[pc_aktualny]);
+
+                for (int i=0; i<3; ++i) {
+                    pvec_edge[i][0] += Ns[i][0]*bc_pc_w[pc_aktualny];
+                }
+            }
+
+            //Warunek brzegowy Robina
+            for (int k =0; k<3; ++k) {
+                p_vec[k][0] += pvec_edge[k][0]*alfa*detJ*t_ext;
+            }
+
+            //Warunek brzegowy Neumanna
+            for (int k=0; k<3; ++k) {
+                p_vec[k][0] += pvec_edge[k][0]*detJ*flux;
             }
         }
 
@@ -481,25 +436,44 @@ namespace Fem {
     {
         Matrix c_matrix(3, 3);
 
-        float x1 = nodes[local_el.node_ids[0]].x;
-        float y1 = nodes[local_el.node_ids[0]].y;
-        float x2 = nodes[local_el.node_ids[1]].x;
-        float y2 = nodes[local_el.node_ids[1]].y;
-        float x3 = nodes[local_el.node_ids[2]].x;
-        float y3 = nodes[local_el.node_ids[2]].y;
+        const float x1 = nodes[local_el.node_ids[0]].x;
+        const float y1 = nodes[local_el.node_ids[0]].y;
+        const float x2 = nodes[local_el.node_ids[1]].x;
+        const float y2 = nodes[local_el.node_ids[1]].y;
+        const float x3 = nodes[local_el.node_ids[2]].x;
+        const float y3 = nodes[local_el.node_ids[2]].y;
 
-        float D = (x2-x1)*(y3-y1) - (x3-x1)*(y2-y1);
-        float Area = std::abs(D) / 2.0f;
+        float detJ = 0.25f *((x2-x1)*(y3-y1) - (y2-y1)*(x3-x1));
+        detJ = std::abs(detJ);
 
-        float factor = (density * specific_heat * Area) / 12.0f;
+        for (int pc =0; pc<3; ++pc) {
+            Matrix Ns(3,1);
+            Ns[0][0] = N1(pc_xi[pc], pc_eta[pc]);
+            Ns[1][0] = N2(pc_xi[pc], pc_eta[pc]);
+            Ns[2][0] = N3(pc_xi[pc], pc_eta[pc]);
 
-        c_matrix[0][0] = 2.0f * factor;
-        c_matrix[1][1] = 2.0f * factor;
-        c_matrix[2][2] = 2.0f * factor;
+            Matrix BTB = Ns*Ns.transpose();
 
-        c_matrix[0][1] = c_matrix[1][0] = 1.0f * factor;
-        c_matrix[0][2] = c_matrix[2][0] = 1.0f * factor;
-        c_matrix[1][2] = c_matrix[2][1] = 1.0f * factor;
+            for (int i=0; i<3; ++i) {
+                for (int j=0; j<3; ++j) {
+                    c_matrix[i][j] += BTB[i][j]*pc_w[pc]*density*specific_heat*detJ;
+                }
+            }
+        }
+
+        /*
+        // --- DODATEK: MASS LUMPING (DIAGONALIZACJA) ---
+        // To naprawi oscylacje i ujemne temperatury
+        Matrix c_lumped(3, 3);
+        for(int i=0; i<3; ++i) {
+            float sum_row = 0.0f;
+            for(int j=0; j<3; ++j) {
+                sum_row += c_matrix[i][j];
+            }
+            c_lumped[i][i] = sum_row;
+        }
+
+        c_matrix = c_lumped;*/
 
         return c_matrix;
     }
@@ -507,8 +481,8 @@ namespace Fem {
     void aggregate(Matrix &Global, Element element, Matrix &Local){
         for(int i=0; i<3;i++){
             for(int j=0; j<3;j++){
-                int glob_i = element.node_ids[i];
-                int glob_j = element.node_ids[j];
+                const int glob_i = element.node_ids[i];
+                const int glob_j = element.node_ids[j];
                 Global[glob_i][glob_j] += Local[i][j]; 
             }
         }
@@ -516,7 +490,7 @@ namespace Fem {
 
     void aggregate_p_vec(Matrix &P_vec, Element element, Matrix &Local){
         for(int i=0; i<3; i++){
-            int glob_i = element.node_ids[i];
+            const int glob_i = element.node_ids[i];
             P_vec[glob_i][0] += Local[i][0];
 
         }
@@ -608,7 +582,7 @@ namespace Fem {
         }
 
         std::cout<<"Beginning time integration...\n";
-        for(float i=conf.time_step; i<conf.total_time; i+=conf.time_step){
+        for(float i=conf.time_step; i<=conf.total_time; i+=conf.time_step){
             for(int j=0; j<conf.node_number; j++){
                 double rhs = 0;
                 for(int k = 0; k<conf.node_number; k++){
@@ -621,7 +595,7 @@ namespace Fem {
             t = Gauss(Global, t);
             //std::cout<<"\nTemperature at time " << i << "s:";
 
-            //std::cout << "\nMIN: " << *std::min_element(t.begin(), t.end()) << " MAX: " << *std::max_element(t.begin(), t.end()) << std::endl;
+            std::cout << "\nMIN: " << *std::min_element(t.begin(), t.end()) << " MAX: " << *std::max_element(t.begin(), t.end()) << std::endl;
             
             if(write_vtu){
                 write_to_vtu_file((int)i, nodes, t, elements);

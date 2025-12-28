@@ -3,18 +3,30 @@
 #include <cmath>
 #include <iostream>
 
+#include "imgui.h"
+
 geo::Node::Node()
 {
     this->x = 0.0;
     this->y = 0.0;
-    this->is_bc = true;
+    this->bc.is_bc = true;
 }
 
 geo::Node::Node(float x, float y)
 {
     this->x = x;
     this->y = y;
-    this->is_bc = true;
+    this->bc.is_bc = true;
+}
+
+geo::Node::Node(const float x, const float y, const bool is_bc) {
+    this->x = x;
+    this->y = y;
+    this->bc.is_bc = is_bc;
+
+    if (!is_bc) {
+        this->color = GREEN;
+    }
 }
 
 geo::Edge::Edge()
@@ -68,7 +80,10 @@ void geo::Mesh::add_point(float x, float y, bool is_bc)
     }
 
     Node temp_node(x, y);
-    temp_node.is_bc = is_bc;
+    temp_node.bc.is_bc = is_bc;
+    if (!is_bc) {
+        temp_node.color = GREEN;
+    }
     this->nodes.push_back(temp_node);
     this->initial_bc_nodes.push_back(temp_node);
 }
@@ -100,20 +115,11 @@ void geo::Mesh::pop_point()
 //------------------- wyświetlanie -------------------
 void geo::Mesh::draw_nodes(float size)
 {
-    Color color;
-
     for(Node &n:this->nodes){
-        if(n.is_bc){
-            color = RED;
-        }
-        else{
-            color = GREEN;
-        }
-
         Vector2 pos;
         pos.x = n.x;
         pos.y = n.y;
-        DrawCircleV(pos, size, color);
+        DrawCircleV(pos, size, n.color);
     }
 }
 
@@ -204,7 +210,7 @@ void geo::Mesh::interpolate_bc_points(float spacing)
             float u = static_cast<float>(j) / static_cast<float>(N);
             
             geo::Node temp(x_u(u), y_u(u));
-            temp.is_bc = true;
+            temp.bc.is_bc = true;
             new_nodes.push_back(temp);
         }
     }
@@ -339,7 +345,7 @@ void geo::Mesh::triangulate()
     this->nodes.insert(this->nodes.begin(), super_triangle_nodes.begin(), super_triangle_nodes.end());
 
     std::vector<geo::Triangle> triangulation;
-    triangulation.push_back(geo::Triangle(0, 1, 2));
+    triangulation.emplace_back(0, 1, 2);
 
  
     for (size_t i = 0; i < original_nodes_count; ++i) {
@@ -397,7 +403,7 @@ void geo::Mesh::triangulate()
         triangulation = temp_triangulation;
 
         for (const auto& edge : polygon_edges) {
-            triangulation.push_back(geo::Triangle(edge.node_ids[0], edge.node_ids[1], node_id));
+            triangulation.emplace_back(edge.node_ids[0], edge.node_ids[1], node_id);
         }
     }
 
@@ -406,7 +412,7 @@ void geo::Mesh::triangulate()
     this->triangles.clear();
     for (const auto& tr : triangulation) {
         if (tr.node_ids[0] >= 3 && tr.node_ids[1] >= 3 && tr.node_ids[2] >= 3) {
-            this->triangles.push_back(geo::Triangle(tr.node_ids[0] - 3, tr.node_ids[1] - 3, tr.node_ids[2] - 3));
+            this->triangles.emplace_back(tr.node_ids[0] - 3, tr.node_ids[1] - 3, tr.node_ids[2] - 3);
         }
     }
 }
@@ -458,10 +464,9 @@ void geo::Mesh::create_mesh(float spacing)
             if(tr_size(tr, this->nodes) > mean_size){
                 float x_p = (this->nodes[tr.node_ids[0]].x +this->nodes[tr.node_ids[1]].x+this->nodes[tr.node_ids[2]].x) /3;
                 float y_p = (this->nodes[tr.node_ids[0]].y +this->nodes[tr.node_ids[1]].y+this->nodes[tr.node_ids[2]].y) /3;
+                bool is_bc = false;
 
-                geo::Node center(x_p, y_p);
-                center.is_bc = false;
-
+                geo::Node center(x_p, y_p, false);
                 this->nodes.push_back(center);
             }
 
@@ -472,4 +477,19 @@ void geo::Mesh::create_mesh(float spacing)
     }
 
     this->mesh_created = true;
+}
+
+
+//dobieranie warunków brzegowych
+int geo::get_node_clicked(const std::vector<geo::Node>& nodes, float x_pos, float y_pos) {
+    const float clickRadius = 0.1f;
+
+
+    for (int i = 0; i < (int) nodes.size(); i++) {
+        if (std::abs(nodes[i].x - x_pos) < clickRadius && std::abs(nodes[i].y - y_pos) < clickRadius) {
+            return i;
+        }
+    }
+
+    return -1; // Nie kliknięto w żaden węzeł
 }
