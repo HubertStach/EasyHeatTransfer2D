@@ -3,7 +3,7 @@ project(easyFEM)
 
 # Workaround for CLang and RayLib's compound literals
 # See: https://github.com/raysan5/raylib/issues/1343
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
 
 # ===== Dependencies =====
 include(FetchContent)

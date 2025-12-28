@@ -34,6 +34,10 @@ MainWindow::MainWindow()
     int bc_node_clicked = -1;
     bool bc_options_saved = true;
 
+    //cleaning Data folder
+    clean_vtu_files();
+    std::cout<<"cleaning vtu files...\n";
+
     while (!WindowShouldClose())
     {
         // DRAW START

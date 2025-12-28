@@ -6,6 +6,10 @@
 #include <fstream>
 #include <vector>
 
+#include <filesystem>
+#include <string>
+#include <iostream>
+
 void save_fem_data(geo::Mesh &mesh, Fem::GlobalData conf) {
     // 1. Use std::ofstream for outputting files
     // 2. No need for std::fstream::in; ofstream defaults to writing mode
@@ -53,4 +57,29 @@ void save_fem_data(geo::Mesh &mesh, Fem::GlobalData conf) {
 
     plik.close();
     //std::cout << "Data saved successfully to fem_data.txt" << std::endl;
+}
+
+// Skrót dla wygody
+
+void clean_vtu_files() {
+    std::string path = "Data"; // Ścieżka do folderu
+
+    if (!std::filesystem::exists(path) || !std::filesystem::is_directory(path)) {
+        return;
+    }
+
+    try {
+        // Przejdź przez wszystkie pliki w folderze
+        for (const auto& entry : std::filesystem::directory_iterator(path)) {
+            if (entry.is_regular_file()) {
+                std::string filename = entry.path().filename().string();
+
+                if (filename.find("sol_") == 0 && entry.path().extension() == ".vtu") {
+                    std::filesystem::remove(entry.path());
+                }
+            }
+        }
+    } catch (const std::filesystem::filesystem_error& e) {
+        std::cerr << "Blad podczas usuwania plikow: " << e.what() << std::endl;
+    }
 }

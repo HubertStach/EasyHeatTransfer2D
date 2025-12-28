@@ -462,8 +462,6 @@ namespace Fem {
         }
 
         /*
-        // --- DODATEK: MASS LUMPING (DIAGONALIZACJA) ---
-        // To naprawi oscylacje i ujemne temperatury
         Matrix c_lumped(3, 3);
         for(int i=0; i<3; ++i) {
             float sum_row = 0.0f;
@@ -595,7 +593,7 @@ namespace Fem {
             t = Gauss(Global, t);
             //std::cout<<"\nTemperature at time " << i << "s:";
 
-            std::cout << "\nMIN: " << *std::min_element(t.begin(), t.end()) << " MAX: " << *std::max_element(t.begin(), t.end()) << std::endl;
+            //std::cout << "\nMIN: " << *std::min_element(t.begin(), t.end()) << " MAX: " << *std::max_element(t.begin(), t.end()) << std::endl;
             
             if(write_vtu){
                 write_to_vtu_file((int)i, nodes, t, elements);
@@ -605,5 +603,6 @@ namespace Fem {
 
             t0=t;
         }
+        std::cout << "\nMIN: " << *std::min_element(t.begin(), t.end()) << " MAX: " << *std::max_element(t.begin(), t.end()) << std::endl;
     }
 }
