@@ -1,10 +1,10 @@
 ## easyFEM
 
-EasyFEM lets you solve nonstationary heat reansfer problem using finite element method to showcase its principles.
+EasyFEM lets you solve nonstationary heat transfer problem using finite element method, on mesh created by the user.
+
+Mesh is created by subdividing triangles from delonay triangulation.
 
 ## ToDo
-    Making FEM solver work
-
     Visualising results
 
     Adding ability to specify boundary conditions
@@ -15,12 +15,6 @@ EasyFEM lets you solve nonstationary heat reansfer problem using finite element 
 
 ## RaylibImGUI Template
 Using template from http://keasigmadelta.com/kea-campus/
-
-## To repair
-There are severall things to repair like:
-    - Dense mesh doesn't work (result is nan everywhere)
-    - Meshes sometimes are not properly constructed (lines intersect)
-    - For less dense mesh results are incorect as it appears as temperature is not travelling through mesh (only edges are heated)
 
 ## How to build 
 
