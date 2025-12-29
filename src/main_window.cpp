@@ -63,13 +63,21 @@ MainWindow::MainWindow()
             camera.target = { 0.0f, 0.0f };
         }
 
+        if (ImGui::Button("Clean Data folder")){
+            clean_vtu_files();
+            std::cout<<"cleaning vtu files...\n";
+        }
+
         ImGui::BeginChild("##child1", ImVec2(0, 200), true);
         ImGui::Text("Mesh settings");
         ImGui::Checkbox("Start adding points", &creatingMesh);
         ImGui::TextDisabled("E: Place point | Q: Pop");
 
         if (ImGui::Button("Create Mesh")) {
-            mesh_created = true;
+            if (mesh.nodes.size() >= 3) {
+                mesh_created = true;
+                mesh.create_mesh(spacing);
+            }
         }
 
         if (ImGui::Button("Reset nodes")){
@@ -77,14 +85,19 @@ MainWindow::MainWindow()
             mesh.nodes.clear();
             mesh.triangles.clear();
             mesh.edges.clear();
+            bc_node_clicked = -1;
+            mesh_created = false;
         }
         ImGui::Separator();
 
         if (bc_node_clicked!= -1) {
-            ImGui::Text("BC Node %did clicked", bc_node_clicked);
+            ImGui::Text("BC Node %d id clicked", bc_node_clicked);
             ImGui::InputFloat("Flux", &mesh.nodes[bc_node_clicked].bc.flux);
             ImGui::InputFloat("Alpha", &mesh.nodes[bc_node_clicked].bc.alfa);
             ImGui::InputFloat("T_ext", &mesh.nodes[bc_node_clicked].bc.t_ext);
+            if(ImGui::Button("Save")){
+                mesh.nodes[bc_node_clicked].bc.initialised = true;
+            }
         }
 
         if (ImGui::CollapsingHeader("Mesh options")){
@@ -217,9 +230,13 @@ MainWindow::MainWindow()
         // Convert snapped world position back to screen position for drawing
         Vector2 screenPos = GetWorldToScreen2D(worldPos, camera);
 
-        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-            bc_node_clicked = geo::get_node_clicked(mesh.nodes, worldPos.x, worldPos.y);
-            if (bc_node_clicked != -1) {
+        if (panelHover && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+
+            int hit_node_id = geo::get_node_clicked(mesh.nodes, worldPos.x, worldPos.y);
+
+            if (hit_node_id != -1) {
+                //std::cout<<hit_node_id<<"\n";
+                bc_node_clicked = hit_node_id;
                 bc_options_saved = false;
             }
         }
@@ -246,13 +263,6 @@ MainWindow::MainWindow()
             }
 
         }
-        if(mesh_created && mesh.nodes.size() > 3){
-            //tworzenie siatki
-            mesh.create_mesh(spacing);
-            mesh_created = true;
-            //creatingMesh = false;
-        }
-
 
         rlDisableScissorTest();
 

@@ -7,6 +7,7 @@
 namespace geo{
     struct Bc {
         bool is_bc=false;
+        bool initialised=false;
         float flux=0.0f;
         float alfa=0.0f;
         float t_ext=0.0f;

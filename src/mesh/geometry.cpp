@@ -116,10 +116,16 @@ void geo::Mesh::pop_point()
 void geo::Mesh::draw_nodes(float size)
 {
     for(Node &n:this->nodes){
+        Color color=n.color;
         Vector2 pos;
         pos.x = n.x;
         pos.y = n.y;
-        DrawCircleV(pos, size, n.color);
+
+        if (n.bc.initialised) {
+            color = ORANGE;
+        }
+
+        DrawCircleV(pos, size, color);
     }
 }
 
@@ -211,6 +217,14 @@ void geo::Mesh::interpolate_bc_points(float spacing)
             
             geo::Node temp(x_u(u), y_u(u));
             temp.bc.is_bc = true;
+
+            if (A.bc.initialised) {
+                temp.bc.flux = A.bc.flux;
+                temp.bc.alfa = A.bc.alfa;
+                temp.bc.t_ext = A.bc.t_ext;
+                temp.bc.initialised = true;
+            }
+
             new_nodes.push_back(temp);
         }
     }
