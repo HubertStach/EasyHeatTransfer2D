@@ -78,6 +78,7 @@ namespace geo{
         void draw_nodes(float size);
         void draw_edges();
         void draw_tr();
+        void draw_tr(std::vector<double> temp, float max, float min);
     };
 
     float len(geo::Node A, geo::Node B);

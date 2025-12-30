@@ -591,7 +591,6 @@ namespace Fem {
             }
 
             t = Gauss(Global, t);
-            //std::cout<<"\nTemperature at time " << i << "s:";
 
             //std::cout << "\nMIN: " << *std::min_element(t.begin(), t.end()) << " MAX: " << *std::max_element(t.begin(), t.end()) << std::endl;
             

@@ -1,4 +1,7 @@
 #include "geometry.h"
+
+#include <algorithm>
+
 #include "raylib.h"
 #include <cmath>
 #include <iostream>
@@ -164,6 +167,56 @@ void geo::Mesh::draw_tr()
         DrawLineV(pos1, pos2, WHITE);
         DrawLineV(pos2, pos3, WHITE);
         DrawLineV(pos3, pos1, WHITE);
+    }
+}
+
+void geo::Mesh::draw_tr(std::vector<double> temp, float max, float min)
+{
+    for (const geo::Triangle& tr : this->triangles) {
+        const geo::Node& node1 = this->nodes[tr.node_ids[0]];
+        const geo::Node& node2 = this->nodes[tr.node_ids[1]];
+        const geo::Node& node3 = this->nodes[tr.node_ids[2]];
+
+        float t1 = temp[tr.node_ids[0]];
+        float t2 = temp[tr.node_ids[1]];
+        float t3 = temp[tr.node_ids[2]];
+
+        float t_mean = (t1+t2+t3)/3.0f;
+
+        Color col;
+
+        if (fabs(max - min) < 0.0001f) {
+            col = GREEN;
+        }
+
+        // Normalizacja do zakresu 0.0 - 1.0
+        float t = (t_mean - min) / (max - min);
+        t = std::clamp(t, 0.0f, 1.0f);
+
+        unsigned char r = 0, g = 0, b = 0;
+
+        if (t < 0.5f) {
+            // Przejście Niebieski -> Zielony
+            float local_t = t * 2.0f; // skalujemy 0..0.5 na 0..1
+            r = 0;
+            g = (unsigned char)(255 * local_t);
+            b = (unsigned char)(255 * (1.0f - local_t));
+        } else {
+            // Przejście Zielony -> Czerwony
+            float local_t = (t - 0.5f) * 2.0f; // skalujemy 0.5..1 na 0..1
+            r = (unsigned char)(255 * local_t);
+            g = (unsigned char)(255 * (1.0f - local_t));
+            b = 0;
+        }
+
+        col = Color{r,g,b, 255};
+
+        const Vector2 pos1 = { node1.x, node1.y };
+        const Vector2 pos2 = { node2.x, node2.y };
+        const Vector2 pos3 = { node3.x, node3.y };
+
+        DrawTriangle(pos1, pos2, pos3, col);
+        DrawTriangle(pos1, pos3, pos2, col);
     }
 }
 

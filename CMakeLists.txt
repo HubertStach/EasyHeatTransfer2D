@@ -25,7 +25,9 @@ set(SOURCE_FILES
         src/material_info/load_materials.cpp
         src/material_info/load_materials.h
         src/saving_data.cpp
-        src/saving_data.h)
+        src/saving_data.h
+        src/visual/visualisation.cpp
+        src/visual/visualisation.h)
 
 add_executable(${PROJECT_NAME} ${SOURCE_FILES})
 

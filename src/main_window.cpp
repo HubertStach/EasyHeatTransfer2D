@@ -16,6 +16,7 @@
 //#include "mesh/mesh.h"
 
 #include "saving_data.h"
+#include "visual/visualisation.h"
 #include "main_window.h"
 
 MainWindow::MainWindow()
@@ -33,6 +34,13 @@ MainWindow::MainWindow()
 
     int bc_node_clicked = -1;
     bool bc_options_saved = true;
+
+    //visualisation
+    bool loading_visual = false;
+    float min_temp = 0.0f;
+    float max_temp = 0.0f;
+    Visualisation vis;
+    bool auto_play = false;
 
     //cleaning Data folder
     clean_vtu_files();
@@ -68,7 +76,7 @@ MainWindow::MainWindow()
             std::cout<<"cleaning vtu files...\n";
         }
 
-        ImGui::BeginChild("##child1", ImVec2(0, 200), true);
+        ImGui::BeginChild("##child1", ImVec2(0, 300), true);
         ImGui::Text("Mesh settings");
         ImGui::Checkbox("Start adding points", &creatingMesh);
         ImGui::TextDisabled("E: Place point | Q: Pop");
@@ -90,7 +98,7 @@ MainWindow::MainWindow()
         }
         ImGui::Separator();
 
-        if (bc_node_clicked!= -1) {
+        if (bc_node_clicked != -1) {
             ImGui::Text("BC Node %d id clicked", bc_node_clicked);
             ImGui::InputFloat("Flux", &mesh.nodes[bc_node_clicked].bc.flux);
             ImGui::InputFloat("Alpha", &mesh.nodes[bc_node_clicked].bc.alfa);
@@ -101,7 +109,7 @@ MainWindow::MainWindow()
         }
 
         if (ImGui::CollapsingHeader("Mesh options")){
-            ImGui::BeginChild("##child3", ImVec2(0, 150), true);
+            ImGui::BeginChild("##child3", ImVec2(0, 52), true);
             ImGui::Text("Node spacing density");
             ImGui::SliderFloat("##", &spacing, 0.1f, 5.0f);
 
@@ -136,12 +144,36 @@ MainWindow::MainWindow()
                     try{
                         Fem::Solution solution("Data/fem_data.txt");
                         solution.solve(true, true);
+                        vis.init_visualisation(mesh);
                     } catch(...){
                         std::cout<<"error occured\n";
                     }
                 }
                 else {
                     std::cout<<"Create mesh first\n";
+                }
+            }
+
+        ImGui::EndChild();
+
+        ImGui::BeginChild("Visualisation", ImVec2(0, 200), true);
+
+            ImGui::Checkbox("visual", &loading_visual);
+            ImGui::InputFloat("Minimum", &vis.min_temp);
+            ImGui::InputFloat("Maximum", &vis.max_temp);
+            if (vis.solved && loading_visual) {
+                ImGui::Checkbox("Autoplay", &auto_play);
+                int max_idx = vis.time_ids.size() - 1;
+                ImGui::Text("Krok czasowy: %d (Czas: %d)", vis.current_step, vis.time_ids[vis.current_step]);
+                // To zmienia indeks kolumny, z której czytamy dane
+                ImGui::SliderInt("Oś czasu", &vis.current_step, 0, max_idx);
+
+                if (auto_play) {
+                    int next_id = vis.current_step + 1;
+                    if (next_id >= vis.time_ids.size()) {
+                        next_id = 0;
+                    }
+                    vis.current_step = next_id;
                 }
             }
 
@@ -216,7 +248,26 @@ MainWindow::MainWindow()
 
             //rysowanie punktów i wielokątów
             mesh.draw_edges();
-            mesh.draw_tr();
+            if (!loading_visual) {
+                mesh.draw_tr();
+            }
+
+            if (loading_visual && vis.solved) {
+                if (vis.current_step >= 0 && vis.current_step < vis.time_ids.size()) {
+
+                    std::vector<double> current_temps;
+                    current_temps.reserve(mesh.nodes.size());
+                    for (size_t i = 0; i < mesh.nodes.size(); i++) {
+                        if (i < vis.temps_matrix.rows) {
+                            current_temps.push_back(vis.temps_matrix[i][vis.current_step]);
+                        } else {
+                            current_temps.push_back(0.0);
+                        }
+                    }
+
+                    mesh.draw_tr(current_temps, vis.max_temp, vis.min_temp);
+                }
+            }
             mesh.draw_nodes(3*(1/camera.zoom));
 
         EndMode2D();
@@ -255,10 +306,12 @@ MainWindow::MainWindow()
             }
 
             if(IsKeyPressed(KEY_Q)){
-               //usuwanie punktu
-               mesh.pop_point();
-               mesh.mesh_created=false;
+                //usuwanie punktu
+                mesh.pop_point();
+                mesh.mesh_created=false;
                 mesh_created=false;
+                bc_node_clicked = -1;
+                loading_visual = false;
                //std::cout<<mesh.nodes.size()<<"\n";
             }
 

@@ -5,7 +5,7 @@
 
 struct MainWindow{
     const int screenWidth = 1280;
-    const int screenHeight = 720;
+    const int screenHeight = 800;
     float toolbarWidth = 250.0f;
 
     // camera
