@@ -5,9 +5,6 @@ EasyFEM lets you solve nonstationary heat transfer problem using finite element 
 Mesh is created by subdividing triangles from delonay triangulation.
 
 ## ToDo
-    Visualising results
-
-    Adding ability to specify boundary conditions
     
     Making FEM solver work on different thread than main app
 
