@@ -21,6 +21,7 @@
 
 MainWindow::MainWindow()
 {
+    //SetConfigFlags(FLAG_WINDOW_RESIZABLE);
     InitWindow(screenWidth, screenHeight, "easyFEM");
     SetTargetFPS(60);
     rlImGuiSetup(true);
@@ -33,14 +34,15 @@ MainWindow::MainWindow()
     geo::Mesh mesh;
 
     int bc_node_clicked = -1;
-    bool bc_options_saved = true;
+    bool bc_options_saved = false;
 
     //visualisation
     bool loading_visual = false;
-    float min_temp = 0.0f;
-    float max_temp = 0.0f;
     Visualisation vis;
     bool auto_play = false;
+    bool display_nodes = true;
+    bool display_triangles = true;
+
 
     //cleaning Data folder
     clean_vtu_files();
@@ -161,6 +163,7 @@ MainWindow::MainWindow()
             ImGui::Checkbox("visual", &loading_visual);
             ImGui::InputFloat("Minimum", &vis.min_temp);
             ImGui::InputFloat("Maximum", &vis.max_temp);
+
             if (vis.solved && loading_visual) {
                 ImGui::Checkbox("Autoplay", &auto_play);
                 int max_idx = vis.time_ids.size() - 1;
@@ -175,7 +178,15 @@ MainWindow::MainWindow()
                     }
                     vis.current_step = next_id;
                 }
+
+                ImGui::Checkbox("Display nodes", &display_nodes);
+                ImGui::Checkbox("Display triangles", &display_triangles);
             }
+
+        if (!loading_visual) {
+            display_nodes = true;
+            display_triangles = true;
+        }
 
         ImGui::EndChild();
 
@@ -248,9 +259,6 @@ MainWindow::MainWindow()
 
             //rysowanie punktów i wielokątów
             mesh.draw_edges();
-            if (!loading_visual) {
-                mesh.draw_tr();
-            }
 
             if (loading_visual && vis.solved) {
                 if (vis.current_step >= 0 && vis.current_step < vis.time_ids.size()) {
@@ -268,7 +276,13 @@ MainWindow::MainWindow()
                     mesh.draw_tr(current_temps, vis.max_temp, vis.min_temp);
                 }
             }
-            mesh.draw_nodes(3*(1/camera.zoom));
+            if (display_triangles) {
+                mesh.draw_tr();
+            }
+
+            if (display_nodes) {
+                mesh.draw_nodes(3*(1/camera.zoom));
+            }
 
         EndMode2D();
 

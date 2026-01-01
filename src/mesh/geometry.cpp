@@ -181,7 +181,7 @@ void geo::Mesh::draw_tr(std::vector<double> temp, float max, float min)
         float t2 = temp[tr.node_ids[1]];
         float t3 = temp[tr.node_ids[2]];
 
-        float t_mean = (t1+t2+t3)/3.0f;
+        float t_mean = (t1 + t2 + t3)/3.0f;
 
         Color col;
 
@@ -196,19 +196,18 @@ void geo::Mesh::draw_tr(std::vector<double> temp, float max, float min)
         unsigned char r = 0, g = 0, b = 0;
 
         if (t < 0.5f) {
-            // Przejście Niebieski -> Zielony
+            // Przejście Niebieski -> Biały
             float local_t = t * 2.0f; // skalujemy 0..0.5 na 0..1
-            r = 0;
-            g = (unsigned char)(255 * local_t);
-            b = (unsigned char)(255 * (1.0f - local_t));
-        } else {
-            // Przejście Zielony -> Czerwony
-            float local_t = (t - 0.5f) * 2.0f; // skalujemy 0.5..1 na 0..1
             r = (unsigned char)(255 * local_t);
+            g = (unsigned char)(255 * local_t);
+            b = 255;
+        } else {
+            // Przejście Biały -> Czerwony
+            float local_t = (t - 0.5f) * 2.0f; // skalujemy 0.5..1 na 0..1
+            r = 255;
             g = (unsigned char)(255 * (1.0f - local_t));
-            b = 0;
+            b = (unsigned char)(255 * (1.0f - local_t));
         }
-
         col = Color{r,g,b, 255};
 
         const Vector2 pos1 = { node1.x, node1.y };
