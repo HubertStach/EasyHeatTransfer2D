@@ -71,6 +71,10 @@ namespace geo{
         bool same_triangle(geo::Triangle A, geo::Triangle B);
         bool is_boundary_edge(std::vector<geo::Triangle> &triangles, geo::Edge edge);
         void triangulate();
+
+        bool point_in_mesh(float x, float y);
+        void clear_mesh();
+
         void create_mesh(float spacing);
         
 

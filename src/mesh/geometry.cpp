@@ -114,7 +114,6 @@ void geo::Mesh::pop_point()
         chwilowa naprawa: pop_point będzie czyścić wszystko
      */
 }
-
 //------------------- wyświetlanie -------------------
 void geo::Mesh::draw_nodes(float size)
 {
@@ -483,6 +482,26 @@ void geo::Mesh::triangulate()
     }
 }
 
+bool geo::Mesh::point_in_mesh(float x, float y) {
+    bool inside = false;
+    size_t count = this->initial_bc_nodes.size();
+
+    for (size_t i = 0, j = count - 1; i < count; j = i++) {
+        float xi = this->initial_bc_nodes[i].x;
+        float yi = this->initial_bc_nodes[i].y;
+        float xj = this->initial_bc_nodes[j].x;
+        float yj = this->initial_bc_nodes[j].y;
+
+        bool intersect = ((yi > y) != (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+
+        if (intersect) {
+            inside = !inside;
+        }
+    }
+
+    return inside;
+}
+
 void geo::Mesh::create_mesh(float spacing)
 {
     if(this->mesh_created){
@@ -530,10 +549,12 @@ void geo::Mesh::create_mesh(float spacing)
             if(tr_size(tr, this->nodes) > mean_size){
                 float x_p = (this->nodes[tr.node_ids[0]].x +this->nodes[tr.node_ids[1]].x+this->nodes[tr.node_ids[2]].x) /3;
                 float y_p = (this->nodes[tr.node_ids[0]].y +this->nodes[tr.node_ids[1]].y+this->nodes[tr.node_ids[2]].y) /3;
-                bool is_bc = false;
 
-                geo::Node center(x_p, y_p, false);
-                this->nodes.push_back(center);
+                if (point_in_mesh(x_p, y_p)) {
+                    bool is_bc = false;
+                    geo::Node center(x_p, y_p, false);
+                    this->nodes.push_back(center);
+                }
             }
 
         }
