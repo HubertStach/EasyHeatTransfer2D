@@ -18,6 +18,7 @@
 #include "saving_data.h"
 #include "visual/visualisation.h"
 #include "main_window.h"
+#include "thread"
 
 MainWindow::MainWindow()
 {
@@ -169,15 +170,33 @@ MainWindow::MainWindow()
                 }
             }
 
+
             if (ImGui::Button("Solve")){
                 if (mesh_created) {
                     try{
-                        Fem::Solution solution("Data/fem_data.txt");
-                        solution.solve_implicit_euler(true, true);
+                        /*
+                        1. tworzymy nowy watek który policzy nam cały problem
+                        2. fem_solve wczytuje plik problemowy, tworząc plik rozwiązania (solution)
+                        3. w konstruktorze solution wczytuje on siatke z pliku i dane problemowe
+                        4. potem funkcja solve na obiekcie solution rozwiązuje problem i zapisuje
+                        wynik w każdym momencie czasowym w formacie .vtu
+
+                        */
+
+                        std::thread fem_thread(fem_solve);
+                        fem_thread.join();
+
                         vis.init_visualisation(mesh);
                         problem_solved = true;
-                    } catch(...){
-
+                    }
+                    catch (const std::runtime_error& re) {
+                        std::cout << "Runtime error: " << re.what() << std::endl;
+                    }
+                    catch(const std::exception& ex) {
+                        std::cout << "Error occurred: " << ex.what() << std::endl;
+                    }
+                    catch(...){
+                        std::cout << "Unknown error" <<std::endl;
                     }
                 }
                 else {

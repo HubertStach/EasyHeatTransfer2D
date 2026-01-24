@@ -605,3 +605,8 @@ namespace Fem {
         std::cout << "\nMIN: " << *std::min_element(t.begin(), t.end()) << " MAX: " << *std::max_element(t.begin(), t.end()) << std::endl;
     }
 }
+
+void fem_solve() {
+    Fem::Solution solution("Data/fem_data.txt");
+    solution.solve_implicit_euler(true, true);
+}

@@ -184,6 +184,7 @@ namespace Fem{
         }*/
 
         void solve_implicit_euler(bool write_vtu=false, bool print_conf = true);
-        
     };
 }
+
+void fem_solve();
