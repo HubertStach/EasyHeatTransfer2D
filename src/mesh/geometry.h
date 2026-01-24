@@ -4,7 +4,7 @@
 #include "raylib.h"
 
 
-namespace geo{
+namespace geo {
     struct Bc {
         bool is_bc=false;
         bool initialised=false;
@@ -26,6 +26,7 @@ namespace geo{
 
     struct Edge{
         int node_ids[2];
+        Bc bc_edge;
 
         Edge();
         Edge(int n1, int n2);
@@ -51,6 +52,7 @@ namespace geo{
         std::vector<Node> nodes;
         std::vector<Node> initial_bc_nodes;
         std::vector<Edge> edges;
+        std::vector<Edge> initial_edges;
         std::vector<Triangle> triangles;
         std::vector<Polygon> polygons;
 
@@ -79,7 +81,7 @@ namespace geo{
         
 
         //------Rysowanie siatki itd.------
-        void draw_nodes(float size);
+        void draw_nodes(float size) const;
         void draw_edges();
         void draw_tr();
         void draw_tr(std::vector<double> temp, float max, float min);
@@ -88,5 +90,7 @@ namespace geo{
     float len(geo::Node A, geo::Node B);
     float tr_size(geo::Triangle &tr, std::vector<geo::Node> nodes);
     int get_node_clicked(const std::vector<geo::Node> &nodes, float x_pos, float y_pos);
-}
+    float distSq(float x1, float y1, float x2, float y2);
+    int get_edge_clicked(const std::vector<geo::Edge>& edges, const std::vector<geo::Node>& nodes, float x_pos, float y_pos);
 
+}

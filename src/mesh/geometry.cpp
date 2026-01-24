@@ -69,14 +69,14 @@ geo::Triangle::Triangle(int n1, int n2, int n3)
     this->node_ids[2] = n3;
 }
 
-geo::Mesh::Mesh()
-{
+geo::Mesh::Mesh() {
 
 }
 
+
 void geo::Mesh::add_point(float x, float y, bool is_bc)
 {
-    for(Node n:this->nodes){
+    for(Node n : this->nodes){
         if(n.x == x && n.y == y){
             return;
         }
@@ -87,8 +87,37 @@ void geo::Mesh::add_point(float x, float y, bool is_bc)
     if (!is_bc) {
         temp_node.color = GREEN;
     }
+
     this->nodes.push_back(temp_node);
     this->initial_bc_nodes.push_back(temp_node);
+
+    size_t s = this->nodes.size();
+
+    if (s == 2) {
+        geo::Edge e(0, 1);
+        e.bc_edge.is_bc = true;
+        this->edges.push_back(e);
+    }
+    else if (s == 3) {
+        geo::Edge e1(1, 2); // B->C
+        e1.bc_edge.is_bc = true;
+        this->edges.push_back(e1);
+
+        geo::Edge e2(2, 0);
+        e2.bc_edge.is_bc = true;
+        this->edges.push_back(e2);
+    }
+    else if (s > 3) {
+        this->edges.pop_back();
+
+        geo::Edge e1(static_cast<int>(s) - 2, static_cast<int>(s) - 1);
+        e1.bc_edge.is_bc = true;
+        this->edges.push_back(e1);
+
+        geo::Edge e2(static_cast<int>(s) - 1, 0);
+        e2.bc_edge.is_bc = true;
+        this->edges.push_back(e2);
+    }
 }
 
 void geo::Mesh::pop_point()
@@ -99,25 +128,38 @@ void geo::Mesh::pop_point()
         this->edges.clear();
         this->initial_bc_nodes.clear();
         mesh_created = false;
+        return;
     }
 
-    if(!this->nodes.empty()){
-        this->nodes.pop_back();
-        this->initial_bc_nodes.pop_back();
+    if(this->nodes.empty()) return;
+
+    size_t s = this->nodes.size();
+
+    this->nodes.pop_back();
+    this->initial_bc_nodes.pop_back();
+
+    if (s == 2) {
+        this->edges.clear();
     }
+    else if (s == 3) {
+        this->edges.pop_back();
+        this->edges.pop_back();
+    }
+    else if (s > 3) {
+        this->edges.pop_back();
+        this->edges.pop_back();
 
-    /* Problem: po usunięciu jednego punktu
-        wszystkie inne punkty się usuwają
-        ale draw_edges i tak rysuje zapisane w pamięci
-        punkty brzegowe
-
-        chwilowa naprawa: pop_point będzie czyścić wszystko
-     */
+        geo::Edge closing(static_cast<int>(s) - 2, 0);
+        closing.bc_edge.is_bc = true;
+        this->edges.push_back(closing);
+    }
 }
+
+
 //------------------- wyświetlanie -------------------
-void geo::Mesh::draw_nodes(float size)
-{
-    for(Node &n:this->nodes){
+
+void geo::Mesh::draw_nodes(const float size) const {
+    for(const Node &n:this->nodes){
         Color color=n.color;
         Vector2 pos;
         pos.x = n.x;
@@ -133,23 +175,27 @@ void geo::Mesh::draw_nodes(float size)
 
 void geo::Mesh::draw_edges()
 {
-    const size_t init_bc_size = this->initial_bc_nodes.size();
-    if(init_bc_size==1 ||init_bc_size==0){return;} //nie da się narysować linii
-    
-    if(!this->mesh_created){
-        for(size_t i =0; i< init_bc_size; i++){
-            Vector2 start_pos;
-            Vector2 end_pos;
-
-            start_pos.x = this->initial_bc_nodes[i].x;
-            start_pos.y = this->initial_bc_nodes[i].y;
-            end_pos.x = this->initial_bc_nodes[(i+1)%init_bc_size].x;
-            end_pos.y = this->initial_bc_nodes[(i+1)%init_bc_size].y;
-
-            DrawLineV(start_pos, end_pos, BLUE);
+    for (const auto& edge : this->edges) {
+        if (edge.node_ids[0] < 0 || edge.node_ids[0] >= (int)nodes.size() || edge.node_ids[1] < 0 || edge.node_ids[1] >= (int)nodes.size())
+        {
+            continue;
         }
+
+        const geo::Node& n1 = this->nodes[edge.node_ids[0]];
+        const geo::Node& n2 = this->nodes[edge.node_ids[1]];
+
+        Vector2 start_pos = { n1.x, n1.y };
+        Vector2 end_pos   = { n2.x, n2.y };
+
+        Color col = BLUE;
+        if (edge.bc_edge.initialised) {
+            col = RED;
+        }
+
+        DrawLineV(start_pos, end_pos, col);
     }
 }
+
 
 void geo::Mesh::draw_tr()
 {
@@ -242,52 +288,76 @@ float geo::tr_size(geo::Triangle &tr, std::vector<geo::Node> nodes){
 
 void geo::Mesh::interpolate_bc_points(float spacing)
 {
-    size_t node_count = nodes.size();
-
-    if(node_count == 0 || node_count == 1){return;}
+    size_t parent_edge_count = this->edges.size();
+    if(parent_edge_count == 0) return;
 
     std::vector<geo::Node> new_nodes;
+    std::vector<geo::Edge> new_edges; // Tworzymy wektor krawędzi od razu
 
-    for (size_t i = 0; i < node_count; i++) {
-        
-        //pętla po dwóch kolejnych punktach tworzących bok
-        geo::Node& A = this->nodes[i];
-        geo::Node& B = this->nodes[(i + 1) % node_count];
-        
-        //obliczanie ile punktów przydzielić na bok
+    int global_node_index = 0; // Licznik wszystkich nowych węzłów
+
+    for (size_t i = 0; i < parent_edge_count; i++) {
+
+        // Pobieramy oryginalną krawędź (rodzica)
+        const geo::Edge& parent_edge = this->edges[i];
+
+        geo::Node& A = this->nodes[parent_edge.node_ids[0]];
+        geo::Node& B = this->nodes[parent_edge.node_ids[1]];
+
         float len = sqrt(pow(B.x-A.x,2) + pow(B.y-A.y,2));
 
-        int N = (int)len/spacing;
-        //std::cout<<N<<"\n";
-        
+        int N = (int)(len/spacing);
+        if (N < 1) N = 1;
+
         auto x_u = [&](float u) { return A.x + (B.x - A.x) * u; };
         auto y_u = [&](float u) { return A.y + (B.y - A.y) * u; };
-        
+
+        // Generujemy N segmentów dla tej krawędzi
         for (int j = 0; j < N; j++) {
             float u = static_cast<float>(j) / static_cast<float>(N);
-            
-            geo::Node temp(x_u(u), y_u(u));
-            temp.bc.is_bc = true;
 
-            if (A.bc.initialised) {
-                temp.bc.flux = A.bc.flux;
-                temp.bc.alfa = A.bc.alfa;
-                temp.bc.t_ext = A.bc.t_ext;
-                temp.bc.initialised = true;
+            // 1. Tworzenie węzła
+            geo::Node temp_node(x_u(u), y_u(u));
+            temp_node.bc.is_bc = true;
+
+            // Przypisanie BC do węzła (opcjonalne, zależnie czy potrzebujesz w node czy edge)
+            if (parent_edge.bc_edge.initialised) {
+                temp_node.bc = parent_edge.bc_edge;
+                temp_node.bc.initialised = true;
+            }
+            new_nodes.push_back(temp_node);
+
+            // 2. Tworzenie krawędzi
+            // Łączymy aktualnie tworzony węzeł z następnym.
+            // (Tymczasowo ustawiamy id następnego jako index + 1,
+            // naprawimy zapętlenie ostatniego elementu po pętli).
+            geo::Edge temp_edge(global_node_index, global_node_index + 1);
+            temp_edge.bc_edge.is_bc = true;
+
+            // KLUCZOWA ZMIANA: Przepisanie warunku brzegowego z RODZICA na NOWĄ PODKRAWĘDŹ
+            if (parent_edge.bc_edge.initialised) {
+                temp_edge.bc_edge = parent_edge.bc_edge; // Kopiujemy wartości (flux, alfa, temp)
+                temp_edge.bc_edge.initialised = true;
             }
 
-            new_nodes.push_back(temp);
+            new_edges.push_back(temp_edge);
+
+            global_node_index++;
         }
     }
 
+    // Podmiana węzłów
     this->nodes = new_nodes;
 
-    std::vector<geo::Edge> edges;
-    for(size_t i =0; i<this->nodes.size();i++){
-        geo::Edge temp(i, (i+1)%3);
-        edges.push_back(temp);
+    // Naprawa ostatniej krawędzi (zamknięcie pętli)
+    // Ostatnia dodana krawędź wskazuje na index równy liczbie węzłów (out of bounds),
+    // powinna wskazywać na 0.
+    if (!new_edges.empty()) {
+        new_edges.back().node_ids[1] = 0;
     }
-    this->edges = edges;
+
+    // Podmiana krawędzi
+    this->edges = new_edges;
 }
 
 
@@ -509,7 +579,12 @@ void geo::Mesh::create_mesh(float spacing)
         this->triangles.clear();
         this->edges.clear();
         this->nodes = this->initial_bc_nodes;
+
+        this->edges = this->initial_edges;
+
         this->mesh_created = false;
+    } else {
+        this->initial_edges = this->edges;
     }
 
     //interpolujemy punkty
@@ -569,14 +644,53 @@ void geo::Mesh::create_mesh(float spacing)
 
 //dobieranie warunków brzegowych
 int geo::get_node_clicked(const std::vector<geo::Node>& nodes, float x_pos, float y_pos) {
-    const float clickRadius = 0.1f;
+    constexpr float clickRadius = 0.1f;
 
-
-    for (int i = 0; i < (int) nodes.size(); i++) {
+    for (int i = 0; i < static_cast<int>(nodes.size()); i++) {
         if (std::abs(nodes[i].x - x_pos) < clickRadius && std::abs(nodes[i].y - y_pos) < clickRadius) {
             return i;
         }
     }
 
     return -1; // Nie kliknięto w żaden węzeł
+}
+
+float geo::distSq(float x1, float y1, float x2, float y2) {
+    return (x1 - x2) * (x1 - x2) + (y1 - y2) * (y1 - y2);
+}
+
+int geo::get_edge_clicked(const std::vector<geo::Edge>& edges, const std::vector<geo::Node>& nodes, float x_pos, float y_pos) {
+    constexpr float clickThreshold = 0.1f;
+    constexpr float clickThresholdSq = clickThreshold * clickThreshold;
+
+    for (int i = 0; i < static_cast<int>(edges.size()); i++) {
+        const auto& n1 = nodes[edges[i].node_ids[0]];
+        const auto& n2 = nodes[edges[i].node_ids[1]];
+
+        const float x1 = n1.x; float y1 = n1.y;
+        const float x2 = n2.x; float y2 = n2.y;
+
+        float dx = x2 - x1;
+        float dy = y2 - y1;
+
+        if (dx == 0 && dy == 0) {
+            if (distSq(x_pos, y_pos, x1, y1) <= clickThresholdSq) return i;
+            continue;
+        }
+
+        float t = ((x_pos - x1) * dx + (y_pos - y1) * dy) / (dx * dx + dy * dy);
+
+        t = std::max(0.0f, std::min(1.0f, t));
+
+        float closestX = x1 + t * dx;
+        float closestY = y1 + t * dy;
+
+        float dist = distSq(x_pos, y_pos, closestX, closestY);
+
+        if (dist <= clickThresholdSq) {
+            return i;
+        }
+    }
+
+    return -1;
 }

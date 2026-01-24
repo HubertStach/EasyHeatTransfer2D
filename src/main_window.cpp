@@ -33,7 +33,11 @@ MainWindow::MainWindow()
 
     geo::Mesh mesh;
 
-    int bc_node_clicked = -1;
+    float bc_flux = 0.0f;
+    float bc_alfa = 0.0f;
+    float bc_text = 0.0f;
+
+    int bc_edge_clicked = -1;
     bool bc_options_saved = false;
 
     //visualisation
@@ -95,18 +99,39 @@ MainWindow::MainWindow()
             mesh.nodes.clear();
             mesh.triangles.clear();
             mesh.edges.clear();
-            bc_node_clicked = -1;
+            bc_edge_clicked = -1;
             mesh_created = false;
         }
         ImGui::Separator();
 
-        if (bc_node_clicked != -1) {
-            ImGui::Text("BC Node %d id clicked", bc_node_clicked);
-            ImGui::InputFloat("Flux", &mesh.nodes[bc_node_clicked].bc.flux);
-            ImGui::InputFloat("Alpha", &mesh.nodes[bc_node_clicked].bc.alfa);
-            ImGui::InputFloat("T_ext", &mesh.nodes[bc_node_clicked].bc.t_ext);
+        if (bc_edge_clicked != -1) {
+            int node_id1 = mesh.edges[bc_edge_clicked].node_ids[0];
+            int node_id2 = mesh.edges[bc_edge_clicked].node_ids[1];
+
+            ImGui::Text("BC edge %d id clicked", bc_edge_clicked);
+            ImGui::InputFloat("Flux", &bc_flux);
+            ImGui::InputFloat("Alpha", &bc_alfa);
+            ImGui::InputFloat("T_ext", &bc_text);
+
             if(ImGui::Button("Save")){
-                mesh.nodes[bc_node_clicked].bc.initialised = true;
+                mesh.nodes[node_id1].bc.initialised = true;
+                mesh.nodes[node_id1].bc.flux = bc_flux;
+                mesh.nodes[node_id1].bc.alfa = bc_alfa;
+                mesh.nodes[node_id1].bc.t_ext = bc_text;
+
+                mesh.nodes[node_id2].bc.initialised = true;
+                mesh.nodes[node_id2].bc.flux = bc_flux;
+                mesh.nodes[node_id2].bc.alfa = bc_alfa;
+                mesh.nodes[node_id2].bc.t_ext = bc_text;
+
+                mesh.edges[bc_edge_clicked].bc_edge.initialised = true;
+                mesh.edges[bc_edge_clicked].bc_edge.flux = bc_flux;
+                mesh.edges[bc_edge_clicked].bc_edge.alfa = bc_alfa;
+                mesh.edges[bc_edge_clicked].bc_edge.t_ext = bc_text;
+
+                bc_flux = 0.0f;
+                bc_alfa = 0.0f;
+                bc_text = 0.0f;
             }
         }
 
@@ -297,12 +322,21 @@ MainWindow::MainWindow()
 
         if (panelHover && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
 
-            int hit_node_id = geo::get_node_clicked(mesh.nodes, worldPos.x, worldPos.y);
+            int hit_node_id = geo::get_edge_clicked(mesh.edges, mesh.nodes, worldPos.x, worldPos.y);
 
             if (hit_node_id != -1) {
-                //std::cout<<hit_node_id<<"\n";
-                bc_node_clicked = hit_node_id;
+                bc_edge_clicked = hit_node_id;
                 bc_options_saved = false;
+
+                if (mesh.edges[hit_node_id].bc_edge.initialised) {
+                    bc_flux = mesh.edges[hit_node_id].bc_edge.flux;
+                    bc_alfa = mesh.edges[hit_node_id].bc_edge.alfa;
+                    bc_text = mesh.edges[hit_node_id].bc_edge.t_ext;
+                } else {
+                    bc_flux = 0.0f;
+                    bc_alfa = 0.0f;
+                    bc_text = 0.0f;
+                }
             }
         }
         //std::cout<<worldPos.x<<", "<<worldPos.y<<"\n";
@@ -324,7 +358,7 @@ MainWindow::MainWindow()
                 mesh.pop_point();
                 mesh.mesh_created=false;
                 mesh_created=false;
-                bc_node_clicked = -1;
+                bc_edge_clicked = -1;
                 loading_visual = false;
                //std::cout<<mesh.nodes.size()<<"\n";
             }

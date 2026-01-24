@@ -142,7 +142,6 @@ namespace Fem{
 
             this->Global_H = Matrix(conf.node_number,conf.node_number);
             this->Global_C = Matrix(conf.node_number,conf.node_number);
-
             this->Global_P = Matrix(conf.node_number,1);
 
             //tworzenie macierzy dla każdego elementu
