@@ -51,25 +51,20 @@ void save_fem_data(geo::Mesh &mesh, Fem::GlobalData conf) {
     for (size_t i = 0; i < mesh.nodes.size(); i++) {
         if (mesh.nodes[i].bc.is_bc) {
             plik << i  << ", " << mesh.nodes[i].bc.flux << ", " << mesh.nodes[i].bc.alfa << ", " << mesh.nodes[i].bc.t_ext << "\n";
-            //plik << i  << ", " << 0 << ", " << 300 << ", " << 1200 << "\n";
         }
     }
 
     plik.close();
-    //std::cout << "Data saved successfully to fem_data.txt" << std::endl;
 }
 
-// Skrót dla wygody
-
 void clean_vtu_files() {
-    std::string path = "Data"; // Ścieżka do folderu
+    std::string path = "Data";
 
     if (!std::filesystem::exists(path) || !std::filesystem::is_directory(path)) {
         return;
     }
 
     try {
-        // Przejdź przez wszystkie pliki w folderze
         for (const auto& entry : std::filesystem::directory_iterator(path)) {
             if (entry.is_regular_file()) {
                 std::string filename = entry.path().filename().string();

@@ -5,12 +5,14 @@
 #ifndef EASYFEM_VISUALISATION_H
 #define EASYFEM_VISUALISATION_H
 
+#include <float.h>
+
 #include "../mes/matrix/matrix.h"
 #include "../mesh/geometry.h"
 
 struct Visualisation {
     bool solved = false;
-    float min_temp=0.0;
+    float min_temp=FLT_MAX;
     float max_temp=0.0;
 
     int current_step = -1;

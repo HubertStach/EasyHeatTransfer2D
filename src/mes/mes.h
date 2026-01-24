@@ -183,7 +183,7 @@ namespace Fem{
             
         }*/
 
-        void solve(bool write_vtu=false, bool print_conf = true);
+        void solve_implicit_euler(bool write_vtu=false, bool print_conf = true);
         
     };
 }

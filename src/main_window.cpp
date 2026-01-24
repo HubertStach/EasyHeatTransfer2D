@@ -39,6 +39,7 @@ MainWindow::MainWindow()
 
     int bc_edge_clicked = -1;
     bool bc_options_saved = false;
+    bool problem_solved = false;
 
     //visualisation
     bool loading_visual = false;
@@ -91,6 +92,7 @@ MainWindow::MainWindow()
             if (mesh.nodes.size() >= 3) {
                 mesh_created = true;
                 mesh.create_mesh(spacing);
+                problem_solved = false;
             }
         }
 
@@ -101,6 +103,7 @@ MainWindow::MainWindow()
             mesh.edges.clear();
             bc_edge_clicked = -1;
             mesh_created = false;
+            problem_solved = false;
         }
         ImGui::Separator();
 
@@ -170,10 +173,11 @@ MainWindow::MainWindow()
                 if (mesh_created) {
                     try{
                         Fem::Solution solution("Data/fem_data.txt");
-                        solution.solve(true, true);
+                        solution.solve_implicit_euler(true, true);
                         vis.init_visualisation(mesh);
+                        problem_solved = true;
                     } catch(...){
-                        std::cout<<"error occured\n";
+
                     }
                 }
                 else {
@@ -183,7 +187,8 @@ MainWindow::MainWindow()
 
         ImGui::EndChild();
 
-        ImGui::BeginChild("Visualisation", ImVec2(0, 200), true);
+        if (problem_solved) {
+            ImGui::BeginChild("Visualisation", ImVec2(0, 200), true);
 
             ImGui::Checkbox("visual", &loading_visual);
             ImGui::InputFloat("Minimum", &vis.min_temp);
@@ -208,12 +213,13 @@ MainWindow::MainWindow()
                 ImGui::Checkbox("Display triangles", &display_triangles);
             }
 
-        if (!loading_visual) {
-            display_nodes = true;
-            display_triangles = true;
-        }
+            if (!loading_visual) {
+                display_nodes = true;
+                display_triangles = true;
+            }
 
-        ImGui::EndChild();
+            ImGui::EndChild();
+        }
 
         if (ImGui::CollapsingHeader("Options")){
 
@@ -350,7 +356,6 @@ MainWindow::MainWindow()
             if(IsKeyPressed(KEY_E)){
                 //dodawanie punktu
                 mesh.add_point(worldPos.x, worldPos.y);
-                //std::cout<<mesh.nodes.size()<<"\n";
             }
 
             if(IsKeyPressed(KEY_Q)){

@@ -16,16 +16,13 @@
 Visualisation::Visualisation() : temps_matrix(1,1) {}
 
 void Visualisation::init_visualisation(geo::Mesh &mesh) {
-    // 1. Sprawdzenie dostępu do folderu Data
     if (!std::filesystem::exists(this->data_path) || !std::filesystem::is_directory(this->data_path)) {
         std::cerr << "Nie ma dostępu do folderu Data\n";
-        return; // Ważne: przerwij, jeśli folder nie istnieje
+        return;
     }
 
-    // Tymczasowy wektor do przechowywania par (ID, ścieżka do pliku)
     std::vector<std::pair<int, std::string>> sorted_files_info;
 
-    // 1. Zliczanie i zbieranie informacji o plikach
     for (const auto& entry : std::filesystem::directory_iterator(this->data_path)) {
         if (entry.is_regular_file() && entry.path().extension() == ".vtu") {
             std::string name_no_ext = entry.path().stem().string();
@@ -37,42 +34,36 @@ void Visualisation::init_visualisation(geo::Mesh &mesh) {
                     sorted_files_info.push_back({number, entry.path().string()});
                 }
                 catch (...) {
-                    // Ignoruj pliki, których nazwy nie pasują do schematu "sol_X.vtu"
                     std::cerr << "Ostrzezenie: Niepoprawna nazwa pliku VTU: " << entry.path().string() << std::endl;
                 }
             }
         }
     }
 
-    // 2. Sortowanie plików według ID
     std::sort(sorted_files_info.begin(), sorted_files_info.end(),
               [](const auto& a, const auto& b) {
-                  return a.first < b.first; // Sortuj rosnąco po ID (a.first)
+                  return a.first < b.first;
               });
 
-    // Wyczyść i uzupełnij time_ids w posortowanej kolejności
     this->time_ids.clear();
+
     for(const auto& file_info : sorted_files_info) {
         this->time_ids.push_back(file_info.first);
     }
 
-    // 3. Przeskalowanie temps_matrix (liczba węzłów x liczba posortowanych plików)
     this->temps_matrix = Fem::Matrix(mesh.nodes.size(), sorted_files_info.size());
 
-    // 4. Załadowanie wszystkich temperatur w POSORTOWANEJ KOLEJNOŚCI
     for (size_t col_idx = 0; col_idx < sorted_files_info.size(); ++col_idx) {
-        // Pobieramy informację o pliku z posortowanej listy
+
         const auto& file_info = sorted_files_info[col_idx];
-        // int step_id = file_info.first; // Nie potrzebujemy już step_id tutaj, tylko dla debug
-        const std::string& filename = file_info.second; // Używamy pełnej ścieżki
+        const std::string& filename = file_info.second;
 
         std::ifstream file(filename);
         if (!file.is_open()) {
             std::cerr << "Blad: Nie mozna otworzyc pliku " << filename << std::endl;
-            // Tutaj możesz zdecydować, czy chcesz przerwać, czy wypełnić kolumnę zerami
-            // Na potrzeby debugowania:
+
             for (size_t node_row = 0; node_row < mesh.nodes.size(); ++node_row) {
-                temps_matrix[node_row][col_idx] = 0.0f; // Wypełnij zerami, jeśli plik niedostępny
+                temps_matrix[node_row][col_idx] = 0.0f;
             }
             continue;
         }
@@ -97,9 +88,15 @@ void Visualisation::init_visualisation(geo::Mesh &mesh) {
 
                 while (ss >> temp_val) {
                     if (current_node_idx < mesh.nodes.size()) {
-                        // Ważne: uzywamy col_idx, który jest indeksem POSORTOWANEJ kolumny
                         temps_matrix[current_node_idx][col_idx] = temp_val;
                         current_node_idx++;
+                    }
+
+                    if (temp_val >= this->max_temp) {
+                        max_temp = temp_val;
+                    }
+                    if (temp_val <= this->min_temp) {
+                        min_temp = temp_val;
                     }
                 }
             }
@@ -108,11 +105,10 @@ void Visualisation::init_visualisation(geo::Mesh &mesh) {
     }
 
     this->solved = true;
-    this->current_step = 0; // Ustaw domyślny krok na pierwszy element (indeks 0)
+    this->current_step = 0;
 }
 
 Color Visualisation::get_color_from_temp(float val, float min_val, float max_val) {
-    // Zabezpieczenie przed dzieleniem przez zero
     if (fabs(max_val - min_val) < 0.0001f) return GREEN;
 
     // Normalizacja do zakresu 0.0 - 1.0

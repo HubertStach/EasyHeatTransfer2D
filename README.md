@@ -8,7 +8,7 @@ Mesh is created by subdividing triangles from delonay triangulation.
     
     Making FEM solver work on different thread than main app
 
-    Adding status bar
+    Adding ability to read abaqus meshes and load mixed meshes (tri and quad elements)
 
 ## RaylibImGUI Template
 Using template from http://keasigmadelta.com/kea-campus/

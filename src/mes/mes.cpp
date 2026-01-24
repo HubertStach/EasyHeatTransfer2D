@@ -563,7 +563,7 @@ namespace Fem {
         out.close();
     }
 
-    void Solution::solve(bool write_vtu, bool print_conf) {
+    void Solution::solve_implicit_euler(bool write_vtu, bool print_conf) {
         Fem::Matrix Global(conf.node_number, conf.node_number);
 
         std::vector<double> t0(conf.node_number);
@@ -580,7 +580,7 @@ namespace Fem {
         }
 
         std::cout<<"Beginning time integration...\n";
-        for(float i=conf.time_step; i<=conf.total_time; i+=conf.time_step){
+        for(int i=conf.time_step; i<=conf.total_time; i+= conf.time_step){
             for(int j=0; j<conf.node_number; j++){
                 double rhs = 0;
                 for(int k = 0; k<conf.node_number; k++){
