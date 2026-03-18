@@ -7,6 +7,10 @@
 #include <algorithm>
 #include <filesystem>
 #include <fstream>
+#include <string>
+#include <sstream>
+#include <iostream>
+#include <cmath>
 
 #include "rlgl.h"
 #include "../mes/matrix/matrix.h"
@@ -30,8 +34,8 @@ void Visualisation::init_visualisation(geo::Mesh &mesh) {
             if (name_no_ext.find("sol_") == 0) {
                 try {
                     std::string number_str = name_no_ext.substr(4); // "sol_" ma 4 znaki
-                    int number = std::stoi(number_str);
-                    sorted_files_info.push_back({number, entry.path().string()});
+                    int number = stoi(number_str);
+                    sorted_files_info.emplace_back(number, entry.path().string());
                 }
                 catch (...) {
                     std::cerr << "Ostrzezenie: Niepoprawna nazwa pliku VTU: " << entry.path().string() << std::endl;
@@ -72,7 +76,7 @@ void Visualisation::init_visualisation(geo::Mesh &mesh) {
         bool inside_temp_array = false;
         int current_node_idx = 0;
 
-        while (std::getline(file, line)) {
+        while (getline(file, line)) {
             if (!inside_temp_array && line.find("Name=\"Temperature\"") != std::string::npos) {
                 inside_temp_array = true;
                 continue;

@@ -22,8 +22,6 @@ set(SOURCE_FILES
     src/mes/matrix/matrix.cpp
     src/app_ui/axis.cpp
     src/app_ui/grid.cpp
-        src/material_info/load_materials.cpp
-        src/material_info/load_materials.h
         src/saving_data.cpp
         src/saving_data.h
         src/visual/visualisation.cpp
