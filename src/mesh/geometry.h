@@ -25,7 +25,7 @@ namespace geo {
     };
 
     struct Edge{
-        int node_ids[2];
+        int node_ids[2]{};
         Bc bc_edge;
 
         Edge();
