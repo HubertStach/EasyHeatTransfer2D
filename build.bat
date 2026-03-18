@@ -7,11 +7,10 @@ set BUILD_TYPE=Debug
 set PROJECT_NAME=easyFEM
 
 echo ==========================================
-echo  Budowanie projektu %PROJECT_NAME% (%BUILD_TYPE%) 
+echo  Building project %PROJECT_NAME% (%BUILD_TYPE%) 
 echo ==========================================
 
-:: 1. Konfiguracja
-echo [1/2] Konfiguracja CMake...
+echo [1/2] Configuring CMake...
 cmake -S . -B %BUILD_DIR% -DCMAKE_BUILD_TYPE=%BUILD_TYPE% -G "MinGW Makefiles"
 if %errorlevel% neq 0 (
     echo.
@@ -22,18 +21,18 @@ if %errorlevel% neq 0 (
 )
 
 :: 2. Wlasciwe budowanie (kompilacja)
-echo [2/2] Kompilacja przez CMake...
+echo [2/2] Compilating via CMake...
 cmake --build %BUILD_DIR% --config %BUILD_TYPE% --parallel
 if %errorlevel% neq 0 (
     echo.
-    echo [BLAD] Kompilacja nie powiodla sie!
+    echo [BLAD] Compilation wwasn't succesfull!
     pause
     exit /b %errorlevel%
 )
 
 echo ==========================================
-echo  Sukces! Projekt zostal zbudowany.
-echo  Plik wykonywalny znajdziesz w folderze: %BUILD_DIR%
+echo  Project has been built.
+echo  To run type ./build/Debug/easyFem.exe
 echo ==========================================
 
 :: Zatrzymuje zamykanie okna
