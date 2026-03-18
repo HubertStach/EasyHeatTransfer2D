@@ -312,6 +312,13 @@ void geo::Mesh::interpolate_bc_points(float spacing)
         auto x_u = [&](float u) { return A.x + (B.x - A.x) * u; };
         auto y_u = [&](float u) { return A.y + (B.y - A.y) * u; };
 
+        float x_diff = (B.x-A.x)*(1.0f/static_cast<float>(N));
+        float y_diff = (B.y-A.y)*(1.0f/static_cast<float>(N));
+        float temp_bc_max_len = std::sqrt(std::pow(x_diff,2) + std::pow(y_diff,2));
+        if (this->max_bc_len <= temp_bc_max_len) {
+            this->max_bc_len = temp_bc_max_len;
+        }
+
         // Generujemy N segmentów dla tej krawędzi
         for (int j = 0; j < N; j++) {
             float u = static_cast<float>(j) / static_cast<float>(N);
@@ -669,6 +676,7 @@ void geo::Mesh::create_mesh(float spacing)
         //std::cout<<mean_size<<'\n';
     }
 
+    cut_ext_elements();
     this->mesh_created = true;
 }
 

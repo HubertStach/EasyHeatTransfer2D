@@ -38,7 +38,7 @@ namespace geo {
         std::vector<int> edge_ids;
 
         Polygon();
-        Polygon(std::vector<int> node_ids);
+        explicit Polygon(std::vector<int> node_ids);
     };
 
     struct Triangle{
@@ -62,16 +62,14 @@ namespace geo {
         void add_point(float x, float y, bool is_bc = true);
         void pop_point();
 
-        void add_edge(int n1, int n2);
-        void add_tr(int n1, int n2, int n3);
-
+        float max_bc_len = 0.0f;
 
         //------ tworzenie siatki ------
         void interpolate_bc_points(float spacing);
         std::vector<geo::Node> super_triangle();
         bool inside_circumcircle(geo::Triangle tr, int node_id);
         bool same_triangle(geo::Triangle A, geo::Triangle B);
-        bool is_boundary_edge(std::vector<geo::Triangle> &triangles, geo::Edge edge);
+        static bool is_boundary_edge(std::vector<geo::Triangle> &triangles, geo::Edge edge);
         void triangulate();
 
         bool point_in_mesh(float x, float y);
