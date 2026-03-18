@@ -6,9 +6,12 @@ Mesh is created by subdividing triangles from delonay triangulation.
 
 ## ToDo
     
-    Making FEM solver work on different thread than main app
+    Add ability to change solver type (explicit Euler, implicit Euler, Crank-Nicolson)
 
-    Adding ability to read abaqus meshes and load mixed meshes (tri and quad elements)
+    Create bash script for simpler building
+
+    Create proper documentation
+
 
 ## RaylibImGUI Template
 Using template from http://keasigmadelta.com/kea-campus/
