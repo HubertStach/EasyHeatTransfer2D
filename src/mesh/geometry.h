@@ -75,8 +75,7 @@ namespace geo {
         void triangulate();
 
         bool point_in_mesh(float x, float y);
-        void clear_mesh();
-
+        void cut_ext_elements();
         void create_mesh(float spacing);
         
 

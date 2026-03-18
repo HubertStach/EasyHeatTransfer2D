@@ -572,6 +572,37 @@ bool geo::Mesh::point_in_mesh(float x, float y) {
     return inside;
 }
 
+void geo::Mesh::cut_ext_elements() {
+    float max_len = this->max_bc_len;
+
+    auto it = this->triangles.begin();
+
+    while (it != this->triangles.end()) {
+        const auto& n1 = this->nodes[it->node_ids[0]];
+        const auto& n2 = this->nodes[it->node_ids[1]];
+        const auto& n3 = this->nodes[it->node_ids[2]];
+
+        bool remove_triangle = false;
+
+        if (n1.bc.is_bc && n2.bc.is_bc && n3.bc.is_bc) {
+
+            float d1 = geo::len(n1, n2);
+            float d2 = geo::len(n2, n3);
+            float d3 = geo::len(n3, n1);
+
+            if (d1 - max_len || d2 - max_len || d3 - max_len) {
+                remove_triangle = true;
+            }
+        }
+
+        if (remove_triangle) {
+            it = this->triangles.erase(it);
+        } else {
+            ++it;
+        }
+    }
+}
+
 void geo::Mesh::create_mesh(float spacing)
 {
     if(this->mesh_created){
