@@ -32,7 +32,7 @@ if %errorlevel% neq 0 (
 
 echo ==========================================
 echo  Project has been built.
-echo  To run type ./build/Debug/easyFem.exe
+echo  To run type ./build/easyFem.exe
 echo ==========================================
 
 :: Zatrzymuje zamykanie okna
