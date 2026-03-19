@@ -461,7 +461,6 @@ namespace Fem {
             }
         }
 
-        /*
         Matrix c_lumped(3, 3);
         for(int i=0; i<3; ++i) {
             float sum_row = 0.0f;
@@ -471,7 +470,7 @@ namespace Fem {
             c_lumped[i][i] = sum_row;
         }
 
-        c_matrix = c_lumped;*/
+        c_matrix = c_lumped;
 
         return c_matrix;
     }
@@ -563,50 +562,88 @@ namespace Fem {
         out.close();
     }
 
-    void Solution::solve_implicit_euler(bool write_vtu, bool print_conf) {
-        Fem::Matrix Global(conf.node_number, conf.node_number);
+    void Solution::solve(bool write_vtu, bool print_conf, const std::string& solver_type) {
 
         std::vector<double> t0(conf.node_number);
-        std::vector<double> t(conf.node_number);
+        std::vector<double> t1(conf.node_number);
 
         for(int i=0; i<conf.node_number;i++){
             t0[i] = conf.init_temperature;
         }
 
-        for(int i=0; i<conf.node_number; i++){
-            for(int j=0; j<conf.node_number; j++){
-                Global[i][j] = Global_H[i][j] + (Global_C[i][j] / conf.time_step);
-            }
-        }
-
-        std::cout<<"Beginning time integration...\n";
-        for(int i=conf.time_step; i<=conf.total_time; i+= conf.time_step){
-            for(int j=0; j<conf.node_number; j++){
-                double rhs = 0;
-                for(int k = 0; k<conf.node_number; k++){
-                    rhs += (Global_C[j][k] / conf.time_step) * t0[k];
+        if (solver_type == "implicit_euler") {
+            Fem::Matrix Global(conf.node_number, conf.node_number);
+            for(int i=0; i<conf.node_number; i++){
+                for(int j=0; j<conf.node_number; j++){
+                    Global[i][j] = Global_H[i][j] + (Global_C[i][j] / conf.time_step);
                 }
-                rhs += Global_P[j][0];
-                t[j] = rhs;
             }
 
-            t = Gauss(Global, t);
+            std::cout<<"Beginning time integration (Implicit Euler)...\n";
+            for(int i=conf.time_step; i<=conf.total_time; i+= conf.time_step){
+                for(int j=0; j<conf.node_number; j++){
+                    double rhs = 0;
+                    for(int k = 0; k<conf.node_number; k++){
+                        rhs += (Global_C[j][k] / conf.time_step) * t0[k];
+                    }
+                    rhs += Global_P[j][0];
+                    t1[j] = rhs;
+                }
 
-            //std::cout << "\nMIN: " << *std::min_element(t.begin(), t.end()) << " MAX: " << *std::max_element(t.begin(), t.end()) << std::endl;
-            
-            if(write_vtu){
-                write_to_vtu_file((int)i, nodes, t, elements);
+                t1 = Gauss(Global, t1);
+
+                //std::cout << "\nMIN: " << *std::min_element(t.begin(), t.end()) << " MAX: " << *std::max_element(t.begin(), t.end()) << std::endl;
+
+                if(write_vtu){
+                    write_to_vtu_file((int)i, nodes, t1, elements);
+                }
+
+                showProgress(i, conf.total_time);
+
+                t0=t1;
             }
-
-            showProgress(i, conf.total_time);
-
-            t0=t;
+            std::cout << "\nMIN: " << *std::min_element(t1.begin(), t1.end()) << " MAX: " << *std::max_element(t1.begin(), t1.end()) << std::endl;
         }
-        std::cout << "\nMIN: " << *std::min_element(t.begin(), t.end()) << " MAX: " << *std::max_element(t.begin(), t.end()) << std::endl;
+
+        else if (solver_type == "explicit_euler") {
+            std::cout<<"Beginning time integration (Explicit Euler)...\n";
+
+            for(int i=conf.time_step; i<=conf.total_time; i+= conf.time_step) {
+                for (int j=0; j<conf.node_number; j++) {
+                    //[H]{t0}
+                    double H_t0 = 0.0;
+                    for (int k=0; k<conf.node_number; k++) {
+                        H_t0 += Global_H[j][k] * t0[k];
+                    }
+
+                    double nawias = H_t0 + Global_P[j][0]; // ([H]{t0} + {P})
+                    double wspolczynnik = conf.time_step / Global_C[j][j]; // dt / [C]
+
+                    t1[j] = t0[j] - wspolczynnik * nawias;
+                }
+
+                if(write_vtu){
+                    write_to_vtu_file((int)i, nodes, t1, elements);
+                }
+
+                showProgress(i, conf.total_time);
+
+                t0 = t1;
+            }
+
+            std::cout << "\nMIN: " << *std::min_element(t1.begin(), t1.end())
+                      << " MAX: " << *std::max_element(t1.begin(), t1.end()) << std::endl;
+        }
+        else if (solver_type == "crank-nicolson") {
+
+        }
+        else {
+            std::cout<<"Unknown solver type\n";
+        }
     }
 }
 
-void fem_solve() {
+void fem_solve(std::string solver_type) {
     Fem::Solution solution("Data/fem_data.txt");
-    solution.solve_implicit_euler(true, true);
+    solution.solve(true, true, solver_type);
 }

@@ -49,6 +49,8 @@ MainWindow::MainWindow()
     bool display_nodes = true;
     bool display_triangles = true;
 
+    std::string solver_type_str = "implicit_euler";
+    int current_solver = 1; // 0 = Explicit, 1 = Implicit, 2 = Crank-Nicolson
 
     //cleaning Data folder
     clean_vtu_files();
@@ -163,6 +165,19 @@ MainWindow::MainWindow()
             ImGui::Text("Speific hest");
             ImGui::InputFloat("J/kgK", &configuration.specific_heat);
 
+            ImGui::Text("Solver type");
+            ImGui::Text("Solver type");
+
+            if (ImGui::RadioButton("Explicit Euler", &current_solver, 0)) {
+                solver_type_str = "explicit_euler";
+            }
+            if (ImGui::RadioButton("Implicit Euler", &current_solver, 1)) {
+                solver_type_str = "implicit_euler";
+            }
+            if (ImGui::RadioButton("Crank-Nicolson", &current_solver, 2)) {
+                solver_type_str = "crank-nicolson";
+            }
+
             if (ImGui::Button("Save")){
                 std::cout<<"Save clicked\n";
                 if(mesh_created){
@@ -183,7 +198,7 @@ MainWindow::MainWindow()
 
                         */
 
-                        std::thread fem_thread(fem_solve);
+                        std::thread fem_thread(fem_solve, solver_type_str);
                         fem_thread.join();
 
                         vis.init_visualisation(mesh);

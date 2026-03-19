@@ -183,8 +183,8 @@ namespace Fem{
             
         }*/
 
-        void solve_implicit_euler(bool write_vtu=false, bool print_conf = true);
+        void solve(bool write_vtu, bool print_conf, const std::string& solver_type);
     };
 }
 
-void fem_solve();
+void fem_solve(std::string solver_type);
