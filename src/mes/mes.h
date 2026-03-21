@@ -111,9 +111,7 @@ namespace Fem{
     Matrix calc_local_H(Element &local_el, std::vector<Node> &nodes, float conductivity);
     Matrix calc_local_Hbc(Element &local_el, std::vector<Node> &nodes);
     Matrix calc_p_vec(Element &local_el, std::vector<Node> &nodes);
-
-    Matrix calc_c(Element &local_el, std::vector<Node> &nodes, 
-        float density, float specific_heat);
+    Matrix calc_c(Element &local_el, std::vector<Node> &nodes, float density, float specific_heat, int c_lump);
 
     void aggregate(Matrix &Global, Element element, Matrix &Local);
     void aggregate_p_vec(Matrix &P_vec, Element element, Matrix &Local);
@@ -128,11 +126,14 @@ namespace Fem{
         std::vector<Node> nodes;
         std::vector<Element> elements;
 
+        std::string solver_type;
+
         double x_char = 100.0; //shortest edge in mesh -> characteristic for CFL number in explicit Euler
         void calc_x_char();
 
-        explicit Solution(std::string filename): Global_H(3,3), Global_C(3,3), Global_P(3,1)
+        explicit Solution(std::string filename, const std::string& solver_type): Global_H(3,3), Global_C(3,3), Global_P(3,1)
         {
+            this->solver_type = solver_type;
             std::string filepath = std::move(filename);
             this->conf = load_configuration(filepath);
             //std::cout<<"loaded config\n";
@@ -155,12 +156,16 @@ namespace Fem{
             std::cout<<"Assembling elemental matrices...\n";
             int i =0;
             int max_iter = this->elements.size();
+            int c_lump = 0;
+            if (this->solver_type == "explocot_euler") {
+                c_lump = 1;
+            }
             for(Element &element: this->elements){
                 
                 element.H_local = calc_local_H(element, this->nodes, this->conf.conductivity);
                 element.H_bc = calc_local_Hbc(element, this->nodes);
                 element.P = calc_p_vec(element, this->nodes);
-                element.C = calc_c(element, this->nodes, this->conf.density, this->conf.specific_heat);
+                element.C = calc_c(element, this->nodes, this->conf.density, this->conf.specific_heat, c_lump);
                 
                 //sumowanie H_l i H_bc
                 for(int row=0; row<3; row++){
@@ -190,8 +195,8 @@ namespace Fem{
             
         }*/
 
-        void solve(bool write_vtu, bool print_conf, const std::string& solver_type, float mesh_spacing);
+        void solve(bool write_vtu, bool print_conf);
     };
 }
 
-void fem_solve(const std::string& solver_type, float mesh_spacing);
+void fem_solve(const std::string& solver_type);

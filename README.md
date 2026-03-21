@@ -5,27 +5,22 @@ EasyFEM lets you solve nonstationary heat transfer problem using finite element 
 Mesh is created by subdividing triangles from delonay triangulation.
 
 ## ToDo
-    
-    Add ability to change solver type (explicit Euler, implicit Euler, Crank-Nicolson)
-
-    Create bash script for simpler building
+        
 
     Create proper documentation
 
 
-## RaylibImGUI Template
-Using template from http://keasigmadelta.com/kea-campus/
-
 ## How to build 
 
-You need a c/c++ compiler, Raylib and CMAKE.
+You need C/C++ compiler and Cmake. To build run:
 
-    mkdir build
+On windows
 
-    cd build
+    ./build.bat
 
-    cmake ..
+On linux
 
-    cmake --build .
+    ./build.sh
 
-    ./Debug/easyFEM.exe
+## RaylibImGUI Template
+Using template from http://keasigmadelta.com/kea-campus/

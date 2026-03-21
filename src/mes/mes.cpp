@@ -434,7 +434,7 @@ namespace Fem {
         return p_vec;
     }
 
-    Matrix calc_c(Element &local_el, std::vector<Node> &nodes, float density, float specific_heat)
+    Matrix calc_c(Element &local_el, std::vector<Node> &nodes, float density, float specific_heat, int c_lump)
     {
         Matrix c_matrix(3, 3);
 
@@ -463,16 +463,19 @@ namespace Fem {
             }
         }
 
-        Matrix c_lumped(3, 3);
-        for(int i=0; i<3; ++i) {
-            float sum_row = 0.0f;
-            for(int j=0; j<3; ++j) {
-                sum_row += c_matrix[i][j];
+        //dla explicit euler robimy macierz C zlepioną, inne metody tego nie portzebują
+        if (c_lump == 1) {
+            Matrix c_lumped(3, 3);
+            for(int i=0; i<3; ++i) {
+                float sum_row = 0.0f;
+                for(int j=0; j<3; ++j) {
+                    sum_row += c_matrix[i][j];
+                }
+                c_lumped[i][i] = sum_row;
             }
-            c_lumped[i][i] = sum_row;
-        }
 
-        c_matrix = c_lumped;
+            c_matrix = c_lumped;
+        }
 
         return c_matrix;
     }
@@ -581,7 +584,7 @@ namespace Fem {
         this->x_char = temp_x;
     }
 
-    void Solution::solve(bool write_vtu, bool print_conf, const std::string& solver_type, float mesh_spacing) {
+    void Solution::solve(bool write_vtu, bool print_conf) {
 
         std::vector<double> t0(conf.node_number);
         std::vector<double> t1(conf.node_number);
@@ -590,7 +593,7 @@ namespace Fem {
             t0[i] = conf.init_temperature;
         }
 
-        if (solver_type == "implicit_euler") {
+        if (this->solver_type == "implicit_euler") {
             Fem::Matrix Global(conf.node_number, conf.node_number);
             for(int i=0; i<conf.node_number; i++){
                 for(int j=0; j<conf.node_number; j++){
@@ -624,7 +627,7 @@ namespace Fem {
             std::cout << "\nMIN: " << *std::min_element(t1.begin(), t1.end()) << " MAX: " << *std::max_element(t1.begin(), t1.end()) << std::endl;
         }
 
-        else if (solver_type == "explicit_euler") {
+        else if (this->solver_type == "explicit_euler") {
             const double alpha_c = conf.conductivity / (conf.density * conf.specific_heat);
             const double cfl = (alpha_c * conf.time_step) / pow(this->x_char, 2);
 
@@ -663,8 +666,38 @@ namespace Fem {
 
             std::cout << "\nMIN: " << *std::min_element(t1.begin(), t1.end())<< " MAX: " << *std::max_element(t1.begin(), t1.end()) << std::endl;
         }
-        else if (solver_type == "crank-nicolson") {
+        else if (this->solver_type == "crank-nicolson") {
+            Fem::Matrix Global(conf.node_number, conf.node_number);
+            for(int i=0; i<conf.node_number; i++){
+                for(int j=0; j<conf.node_number; j++){
+                    Global[i][j] = 0.5*Global_H[i][j] + (Global_C[i][j] / conf.time_step);
+                }
+            }
 
+            std::cout<<"Beginning time integration (Crank-Nicolson)...\n";
+            for(int i=conf.time_step; i<=conf.total_time; i+= conf.time_step){
+                for(int j=0; j<conf.node_number; j++){
+                    double rhs = 0;
+                    for(int k = 0; k<conf.node_number; k++){
+                        rhs += ((Global_C[j][k] / conf.time_step) -0.5*Global_H[j][k])* t0[k];
+                    }
+                    rhs += Global_P[j][0];
+                    t1[j] = rhs;
+                }
+
+                t1 = Gauss(Global, t1);
+
+                //std::cout << "\nMIN: " << *std::min_element(t.begin(), t.end()) << " MAX: " << *std::max_element(t.begin(), t.end()) << std::endl;
+
+                if(write_vtu){
+                    write_to_vtu_file((int)i, nodes, t1, elements);
+                }
+
+                showProgress(i, conf.total_time);
+
+                t0=t1;
+            }
+            std::cout << "\nMIN: " << *std::min_element(t1.begin(), t1.end()) << " MAX: " << *std::max_element(t1.begin(), t1.end()) << std::endl;
         }
         else {
             std::cout<<"Unknown solver type\n";
@@ -672,7 +705,7 @@ namespace Fem {
     }
 }
 
-void fem_solve(const std::string& solver_type, const float mesh_spacing) {
-    Fem::Solution solution("Data/fem_data.txt");
-    solution.solve(true, true, solver_type, mesh_spacing);
+void fem_solve(const std::string& solver_type) {
+    Fem::Solution solution("Data/fem_data.txt", solver_type);
+    solution.solve(true, true);
 }

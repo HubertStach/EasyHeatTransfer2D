@@ -26,6 +26,6 @@ cmake --build $BUILD_DIR --config $BUILD_TYPE --parallel
 
 echo "=========================================="
 echo  "Project has been built succesfully"
-echo  "to run %PROJECT_NAME%.exe write:"
-echo  "".\%BUILD_DIR%\%BUILD_TYPE%\%PROJECT_NAME%.exe""
+echo  "to run %PROJECT_NAME% write:"
+echo  "".\%BUILD_DIR%\%BUILD_TYPE%\%PROJECT_NAME%""
 echo "=========================================="
