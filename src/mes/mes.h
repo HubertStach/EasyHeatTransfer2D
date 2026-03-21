@@ -1,5 +1,7 @@
 #pragma once
 
+#include <utility>
+
 #include "matrix/matrix.h"
 
 namespace Fem{
@@ -54,9 +56,9 @@ namespace Fem{
     };
 
     struct Element{
-        int id;
-        int node_ids[3];
-        float area;
+        int id{};
+        int node_ids[3]{};
+        float area{};
 
         Matrix H_local;
         Matrix H_bc;
@@ -125,10 +127,13 @@ namespace Fem{
         GlobalData conf;
         std::vector<Node> nodes;
         std::vector<Element> elements;
-        
-        Solution(std::string filename): Global_H(3,3), Global_C(3,3), Global_P(3,1)
+
+        double x_char = 100.0; //shortest edge in mesh -> characteristic for CFL number in explicit Euler
+        void calc_x_char();
+
+        explicit Solution(std::string filename): Global_H(3,3), Global_C(3,3), Global_P(3,1)
         {
-            std::string filepath = filename;
+            std::string filepath = std::move(filename);
             this->conf = load_configuration(filepath);
             //std::cout<<"loaded config\n";
             this->nodes = load_nodes(filepath);
@@ -137,6 +142,8 @@ namespace Fem{
             //std::cout<<"loaded elements, elements size = "<<elements.size()<<std::endl;
             this->nodes = load_bc(filepath, this->nodes);
             //std::cout<<"loaded BC\n";
+
+            this->calc_x_char();
 
             print_config(this->conf);
 
@@ -183,8 +190,8 @@ namespace Fem{
             
         }*/
 
-        void solve(bool write_vtu, bool print_conf, const std::string& solver_type);
+        void solve(bool write_vtu, bool print_conf, const std::string& solver_type, float mesh_spacing);
     };
 }
 
-void fem_solve(std::string solver_type);
+void fem_solve(const std::string& solver_type, float mesh_spacing);

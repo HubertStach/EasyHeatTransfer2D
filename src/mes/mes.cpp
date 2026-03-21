@@ -221,6 +221,8 @@ namespace Fem {
         return result;
     }
 
+
+
     GlobalData load_configuration(std::string file_name)
     {
         std::fstream file;
@@ -562,7 +564,23 @@ namespace Fem {
         out.close();
     }
 
-    void Solution::solve(bool write_vtu, bool print_conf, const std::string& solver_type) {
+    void Solution::calc_x_char() {
+        auto length =  [&](const int n_1, const int n_2, const std::vector<Node> &nodes) {
+            return sqrt(pow(nodes[n_2].x-nodes[n_1].x,2)+pow(nodes[n_2].y-nodes[n_1].y,2));
+        };
+
+        double temp_x = 1000.0;
+        for (Element& it: this->elements) {
+            double l1 = length(it.node_ids[0], it.node_ids[1], this->nodes);
+            double l2 = length(it.node_ids[1], it.node_ids[2], this->nodes);
+            double l3 = length(it.node_ids[2], it.node_ids[0], this->nodes);
+
+            temp_x = std::min(temp_x, std::min(l1, std::min(l2, l3)));
+        }
+        this->x_char = temp_x;
+    }
+
+    void Solution::solve(bool write_vtu, bool print_conf, const std::string& solver_type, float mesh_spacing) {
 
         std::vector<double> t0(conf.node_number);
         std::vector<double> t1(conf.node_number);
@@ -606,7 +624,9 @@ namespace Fem {
         }
 
         else if (solver_type == "explicit_euler") {
-            std::cout<<"Beginning time integration (Explicit Euler)...\n";
+            const double alpha = conf.conductivity/(conf.density*conf.specific_heat);
+            const double cfl = (alpha*conf.time_step)/pow(this->x_char,2);
+            std::cout<<"Beginning time integration (Explicit Euler, CFL = "<<std::setprecision(10) << cfl <<", cfl < 0.25 is stable, not stable otherwise)...\n";
 
             for(int i=conf.time_step; i<=conf.total_time; i+= conf.time_step) {
                 for (int j=0; j<conf.node_number; j++) {
@@ -616,7 +636,7 @@ namespace Fem {
                         H_t0 += Global_H[j][k] * t0[k];
                     }
 
-                    double nawias = H_t0 + Global_P[j][0]; // ([H]{t0} + {P})
+                    double nawias = H_t0 - Global_P[j][0]; // ([H]{t0} - {P})
                     double wspolczynnik = conf.time_step / Global_C[j][j]; // dt / [C]
 
                     t1[j] = t0[j] - wspolczynnik * nawias;
@@ -643,7 +663,7 @@ namespace Fem {
     }
 }
 
-void fem_solve(std::string solver_type) {
+void fem_solve(const std::string& solver_type, const float mesh_spacing) {
     Fem::Solution solution("Data/fem_data.txt");
-    solution.solve(true, true, solver_type);
+    solution.solve(true, true, solver_type, mesh_spacing);
 }

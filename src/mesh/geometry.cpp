@@ -640,7 +640,7 @@ void geo::Mesh::create_mesh(float spacing)
     }
     mean_size = sum_size/static_cast<int>(triangles.size());
 
-    constexpr float divider = (4.0f / 1.73205f);
+    constexpr float divider = (3.0f / 1.73205f);
     
     int max_iter = 10;
     int current_iter = 0;

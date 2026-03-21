@@ -198,7 +198,7 @@ MainWindow::MainWindow()
 
                         */
 
-                        std::thread fem_thread(fem_solve, solver_type_str);
+                        std::thread fem_thread(fem_solve, solver_type_str, spacing);
                         fem_thread.join();
 
                         vis.init_visualisation(mesh);
