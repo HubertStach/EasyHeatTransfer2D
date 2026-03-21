@@ -565,17 +565,18 @@ namespace Fem {
     }
 
     void Solution::calc_x_char() {
-        auto length =  [&](const int n_1, const int n_2, const std::vector<Node> &nodes) {
-            return sqrt(pow(nodes[n_2].x-nodes[n_1].x,2)+pow(nodes[n_2].y-nodes[n_1].y,2));
+        auto length = [&](const int n_1, const int n_2, const std::vector<Node> &nodes) {
+            return sqrt(pow(nodes[n_2].x-nodes[n_1].x, 2) + pow(nodes[n_2].y-nodes[n_1].y, 2));
         };
 
-        double temp_x = 1000.0;
+        double temp_x = std::numeric_limits<double>::max();
+
         for (Element& it: this->elements) {
             double l1 = length(it.node_ids[0], it.node_ids[1], this->nodes);
             double l2 = length(it.node_ids[1], it.node_ids[2], this->nodes);
             double l3 = length(it.node_ids[2], it.node_ids[0], this->nodes);
 
-            temp_x = std::min(temp_x, std::min(l1, std::min(l2, l3)));
+            temp_x = std::min({temp_x, l1, l2, l3});
         }
         this->x_char = temp_x;
     }
@@ -624,20 +625,30 @@ namespace Fem {
         }
 
         else if (solver_type == "explicit_euler") {
-            const double alpha = conf.conductivity/(conf.density*conf.specific_heat);
-            const double cfl = (alpha*conf.time_step)/pow(this->x_char,2);
-            std::cout<<"Beginning time integration (Explicit Euler, CFL = "<<std::setprecision(10) << cfl <<", cfl < 0.25 is stable, not stable otherwise)...\n";
+            const double alpha_c = conf.conductivity / (conf.density * conf.specific_heat);
+            const double cfl = (alpha_c * conf.time_step) / pow(this->x_char, 2);
 
-            for(int i=conf.time_step; i<=conf.total_time; i+= conf.time_step) {
-                for (int j=0; j<conf.node_number; j++) {
-                    //[H]{t0}
+            std::cout << "Beginning time integration (Explicit Euler)\n";
+            std::cout << "Calculated Fourier Number (CFL): " << std::setprecision(5) << cfl << "\n";
+            if (cfl >= 0.25) {
+                std::cout << "[WARNING] CFL >= 0.25. Simulation will likely be UNSTABLE!\n";
+            }
+
+            for(int i = conf.time_step; i <= conf.total_time; i += conf.time_step) {
+                for (int j = 0; j < conf.node_number; j++) {
+
+                    if (Global_C[j][j] == 0.0) {
+                        t1[j] = t0[j];
+                        continue;
+                    }
+
                     double H_t0 = 0.0;
-                    for (int k=0; k<conf.node_number; k++) {
+                    for (int k = 0; k < conf.node_number; k++) {
                         H_t0 += Global_H[j][k] * t0[k];
                     }
 
-                    double nawias = H_t0 - Global_P[j][0]; // ([H]{t0} - {P})
-                    double wspolczynnik = conf.time_step / Global_C[j][j]; // dt / [C]
+                    double nawias = H_t0 - Global_P[j][0];
+                    double wspolczynnik = conf.time_step / Global_C[j][j];
 
                     t1[j] = t0[j] - wspolczynnik * nawias;
                 }
@@ -647,12 +658,10 @@ namespace Fem {
                 }
 
                 showProgress(i, conf.total_time);
-
                 t0 = t1;
             }
 
-            std::cout << "\nMIN: " << *std::min_element(t1.begin(), t1.end())
-                      << " MAX: " << *std::max_element(t1.begin(), t1.end()) << std::endl;
+            std::cout << "\nMIN: " << *std::min_element(t1.begin(), t1.end())<< " MAX: " << *std::max_element(t1.begin(), t1.end()) << std::endl;
         }
         else if (solver_type == "crank-nicolson") {
 

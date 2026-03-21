@@ -166,7 +166,6 @@ MainWindow::MainWindow()
             ImGui::InputFloat("J/kgK", &configuration.specific_heat);
 
             ImGui::Text("Solver type");
-            ImGui::Text("Solver type");
 
             if (ImGui::RadioButton("Explicit Euler", &current_solver, 0)) {
                 solver_type_str = "explicit_euler";
@@ -188,6 +187,7 @@ MainWindow::MainWindow()
 
             if (ImGui::Button("Solve")){
                 if (mesh_created) {
+                    clean_vtu_files();
                     try{
                         /*
                         1. tworzymy nowy watek który policzy nam cały problem
