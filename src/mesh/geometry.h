@@ -3,7 +3,6 @@
 
 #include "raylib.h"
 
-
 namespace geo {
     struct Bc {
         bool is_bc=false;
@@ -42,7 +41,7 @@ namespace geo {
     };
 
     struct Triangle{
-        int node_ids[3];
+        int node_ids[3]{};
 
         Triangle();
         Triangle(int n1, int n2, int n3);
@@ -81,7 +80,8 @@ namespace geo {
         void draw_nodes(float size) const;
         void draw_edges();
         void draw_tr();
-        void draw_tr(std::vector<double> temp, float max, float min);
+        void draw_tr(std::vector<double> &temp, float max, float min) const;
+        void draw_tr_grad(std::vector<double> &temp, float max, float min) const;
     };
 
     float len(geo::Node A, geo::Node B);

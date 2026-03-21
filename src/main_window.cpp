@@ -338,7 +338,7 @@ MainWindow::MainWindow()
                         }
                     }
 
-                    mesh.draw_tr(current_temps, vis.max_temp, vis.min_temp);
+                    mesh.draw_tr_grad(current_temps, vis.max_temp, vis.min_temp);
                 }
             }
             if (display_triangles) {

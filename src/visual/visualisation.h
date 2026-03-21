@@ -2,8 +2,7 @@
 // Created by hubert on 12/30/25.
 //
 
-#ifndef EASYFEM_VISUALISATION_H
-#define EASYFEM_VISUALISATION_H
+#pragma once
 
 #include <float.h>
 
@@ -28,8 +27,6 @@ struct Visualisation {
     Visualisation();
     void init_visualisation(geo::Mesh &mesh);
 
-    static Color get_color_from_temp(float val, float min_val, float max_val);
-    void draw_temp_grad(const geo::Mesh &mesh);
 };
 
-#endif //EASYFEM_VISUALISATION_H
+static Color get_color_from_temp(float val, float min_val, float max_val);

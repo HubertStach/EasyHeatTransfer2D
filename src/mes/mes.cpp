@@ -129,7 +129,7 @@ namespace Fem {
         return ((x1-x3)/(((x2-x1)*(y3-y1))-((x3-x1)*(y2-y1))));
     }
 
-    float Element::dN3dy(std::vector<Node> &nodes) {
+    float Element::dN3dy(const std::vector<Node> &nodes) const {
         float x1, x2, x3, y1, y2, y3;
 
         x1 = nodes[this->node_ids[0]].x;
@@ -143,7 +143,7 @@ namespace Fem {
         return ((x2-x1)/(((x2-x1)*(y3-y1))-((x3-x1)*(y2-y1))));
     }
 
-    std::vector<Node> load_nodes(std::string file_name)
+    std::vector<Node> load_nodes(const std::string& file_name)
     {
         std::fstream file;
         std::vector<Node> result;
@@ -182,7 +182,7 @@ namespace Fem {
         return result;
     }
 
-    std::vector<Element> load_elements(std::string file_name)
+    std::vector<Element> load_elements(const std::string& file_name)
     {
         std::fstream file;
         std::vector<Element> result;
@@ -223,7 +223,7 @@ namespace Fem {
 
 
 
-    GlobalData load_configuration(std::string file_name)
+    GlobalData load_configuration(const std::string& file_name)
     {
         std::fstream file;
         GlobalData data;
@@ -257,8 +257,7 @@ namespace Fem {
         return data;
     }
 
-    std::vector<Node> load_bc(std::string file_name, 
-        std::vector<Node>& nodes)
+    std::vector<Node> load_bc(const std::string& file_name, std::vector<Node>& nodes)
     {
         std::fstream file;
 
@@ -320,7 +319,7 @@ namespace Fem {
         return sqrt(pow( a.x - b.x,2)+pow(a.y - b.y,2));
     }
 
-    Matrix calc_local_H(Element &local_el, std::vector<Node> &nodes, float conductivity)
+    Matrix calc_local_H(Element &local_el, std::vector<Node> &nodes, const float conductivity)
     {
         Matrix dNdx(3,1), dNdy(3,1);
 
@@ -386,7 +385,7 @@ namespace Fem {
         return Hbc;
     }
 
-    Matrix calc_p_vec(Element &local_el, std::vector<Node> &nodes)
+    Matrix calc_p_vec(const Element &local_el, const std::vector<Node> &nodes)
     {
         Matrix p_vec(3, 1);
 
@@ -415,8 +414,8 @@ namespace Fem {
                 Ns[1][0] = N2(bc_pc_xi[pc_aktualny], bc_pc_eta[pc_aktualny]);
                 Ns[2][0] = N3(bc_pc_xi[pc_aktualny], bc_pc_eta[pc_aktualny]);
 
-                for (int i=0; i<3; ++i) {
-                    pvec_edge[i][0] += Ns[i][0]*bc_pc_w[pc_aktualny];
+                for (int j=0; j<3; ++j) {
+                    pvec_edge[j][0] += Ns[j][0]*bc_pc_w[pc_aktualny];
                 }
             }
 
@@ -434,7 +433,7 @@ namespace Fem {
         return p_vec;
     }
 
-    Matrix calc_c(Element &local_el, std::vector<Node> &nodes, float density, float specific_heat, int c_lump)
+    Matrix calc_c(const Element &local_el, const std::vector<Node> &nodes, const float density, const float specific_heat, const int c_lump=0)
     {
         Matrix c_matrix(3, 3);
 
@@ -467,7 +466,7 @@ namespace Fem {
         if (c_lump == 1) {
             Matrix c_lumped(3, 3);
             for(int i=0; i<3; ++i) {
-                float sum_row = 0.0f;
+                double sum_row = 0.0f;
                 for(int j=0; j<3; ++j) {
                     sum_row += c_matrix[i][j];
                 }
@@ -480,7 +479,7 @@ namespace Fem {
         return c_matrix;
     }
 
-    void aggregate(Matrix &Global, Element element, Matrix &Local){
+    void aggregate(Matrix &Global, const Element& element, Matrix &Local){
         for(int i=0; i<3;i++){
             for(int j=0; j<3;j++){
                 const int glob_i = element.node_ids[i];
@@ -490,7 +489,7 @@ namespace Fem {
         }
     }
 
-    void aggregate_p_vec(Matrix &P_vec, Element element, Matrix &Local){
+    void aggregate_p_vec(Matrix &P_vec, const Element& element, Matrix &Local){
         for(int i=0; i<3; i++){
             const int glob_i = element.node_ids[i];
             P_vec[glob_i][0] += Local[i][0];
@@ -584,7 +583,7 @@ namespace Fem {
         this->x_char = temp_x;
     }
 
-    void Solution::solve(bool write_vtu, bool print_conf) {
+    void Solution::solve(const bool write_vtu, bool print_conf) {
 
         std::vector<double> t0(conf.node_number);
         std::vector<double> t1(conf.node_number);

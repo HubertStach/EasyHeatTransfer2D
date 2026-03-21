@@ -76,12 +76,12 @@ namespace Fem{
         float dN3dx(std::vector<Node> &nodes);
         float dN1dy(std::vector<Node> &nodes);
         float dN2dy(std::vector<Node> &nodes);
-        float dN3dy(std::vector<Node> &nodes);
+        float dN3dy(const std::vector<Node> &nodes) const;
     };
 
-    std::vector<Fem::Node> load_nodes(std::string file_name);
-    std::vector<Fem::Element> load_elements(std::string file_name);
-    std::vector<Fem::Node> load_bc(std::string file_name, std::vector<Fem::Node>& nodes);
+    std::vector<Node> load_nodes(const std::string& file_name);
+    std::vector<Element> load_elements(const std::string& file_name);
+    std::vector<Node> load_bc(const std::string& file_name, std::vector<Node>& nodes);
     
     struct GlobalData{
         float total_time;
@@ -105,16 +105,16 @@ namespace Fem{
         }
     };
 
-    GlobalData load_configuration(std::string file_name);
+    GlobalData load_configuration(const std::string& file_name);
     void print_config(Fem::GlobalData configuration);
 
     Matrix calc_local_H(Element &local_el, std::vector<Node> &nodes, float conductivity);
     Matrix calc_local_Hbc(Element &local_el, std::vector<Node> &nodes);
-    Matrix calc_p_vec(Element &local_el, std::vector<Node> &nodes);
-    Matrix calc_c(Element &local_el, std::vector<Node> &nodes, float density, float specific_heat, int c_lump);
+    Matrix calc_p_vec(const Element &local_el, const std::vector<Node> &nodes);
+    Matrix calc_c(const Element &local_el, const std::vector<Node> &nodes, float density, float specific_heat, int c_lump);
 
-    void aggregate(Matrix &Global, Element element, Matrix &Local);
-    void aggregate_p_vec(Matrix &P_vec, Element element, Matrix &Local);
+    void aggregate(Matrix &Global, const Element& element, Matrix &Local);
+    void aggregate_p_vec(Matrix &P_vec, const Element& element, Matrix &Local);
     void write_to_vtu_file(int step, const std::vector<Fem::Node> &nodes, 
         const std::vector<double> &temp, const std::vector<Fem::Element> &elements);
     
@@ -157,7 +157,7 @@ namespace Fem{
             int i =0;
             int max_iter = this->elements.size();
             int c_lump = 0;
-            if (this->solver_type == "explocot_euler") {
+            if (this->solver_type == "explicit_euler") {
                 c_lump = 1;
             }
             for(Element &element: this->elements){

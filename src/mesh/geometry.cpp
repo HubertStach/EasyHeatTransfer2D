@@ -5,7 +5,7 @@
 #include "raylib.h"
 #include <cmath>
 #include <iostream>
-
+#include "rlgl.h"
 #include "imgui.h"
 
 geo::Node::Node()
@@ -215,8 +215,8 @@ void geo::Mesh::draw_tr()
     }
 }
 
-void geo::Mesh::draw_tr(std::vector<double> temp, float max, float min)
-{
+//zastąpione przed draw_tr_grad
+void geo::Mesh::draw_tr(std::vector<double> &temp, float max, float min) const {
     for (const geo::Triangle& tr : this->triangles) {
         const geo::Node& node1 = this->nodes[tr.node_ids[0]];
         const geo::Node& node2 = this->nodes[tr.node_ids[1]];
@@ -255,13 +255,75 @@ void geo::Mesh::draw_tr(std::vector<double> temp, float max, float min)
         }
         col = Color{r,g,b, 255};
 
+
         const Vector2 pos1 = { node1.x, node1.y };
         const Vector2 pos2 = { node2.x, node2.y };
         const Vector2 pos3 = { node3.x, node3.y };
 
         DrawTriangle(pos1, pos2, pos3, col);
         DrawTriangle(pos1, pos3, pos2, col);
+
     }
+}
+
+void geo::Mesh::draw_tr_grad(std::vector<double> &temp, float max, float min) const {
+
+    auto get_color_for_temp = [max, min](float t_val) -> Color {
+        if (std::fabs(max - min) < 0.0001f) {
+            return GREEN;
+        }
+
+        // Normalizacja do zakresu 0.0 - 1.0
+        float t = (t_val - min) / (max - min);
+        t = std::clamp(t, 0.0f, 1.0f);
+
+        unsigned char r = 0, g = 0, b = 0;
+
+        if (t < 0.5f) {
+            // Przejście Niebieski -> Biały
+            float local_t = t * 2.0f; // skalujemy 0..0.5 na 0..1
+            r = (unsigned char)(255 * local_t);
+            g = (unsigned char)(255 * local_t);
+            b = 255;
+        } else {
+            // Przejście Biały -> Czerwony
+            float local_t = (t - 0.5f) * 2.0f; // skalujemy 0.5..1 na 0..1
+            r = 255;
+            g = (unsigned char)(255 * (1.0f - local_t));
+            b = (unsigned char)(255 * (1.0f - local_t));
+        }
+
+        return Color{r, g, b, 255};
+    };
+
+    rlBegin(RL_TRIANGLES);
+
+    for (const geo::Triangle& tr : this->triangles) {
+        const geo::Node& node1 = this->nodes[tr.node_ids[0]];
+        const geo::Node& node2 = this->nodes[tr.node_ids[1]];
+        const geo::Node& node3 = this->nodes[tr.node_ids[2]];
+
+        float t1 = temp[tr.node_ids[0]];
+        float t2 = temp[tr.node_ids[1]];
+        float t3 = temp[tr.node_ids[2]];
+
+        Color col1 = get_color_for_temp(t1);
+        Color col2 = get_color_for_temp(t2);
+        Color col3 = get_color_for_temp(t3);
+
+        // dwustronnemu z oryginalnego kodu - DrawTriangle(pos1, pos3, pos2))
+        rlColor4ub(col1.r, col1.g, col1.b, col1.a);
+        rlVertex2f(node1.x, node1.y);
+
+        rlColor4ub(col3.r, col3.g, col3.b, col3.a);
+        rlVertex2f(node3.x, node3.y);
+
+        rlColor4ub(col2.r, col2.g, col2.b, col2.a);
+        rlVertex2f(node2.x, node2.y);
+    }
+
+    // Kończymy rysowanie
+    rlEnd();
 }
 
 
