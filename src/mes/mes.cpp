@@ -592,6 +592,8 @@ namespace Fem {
             t0[i] = conf.init_temperature;
         }
 
+        std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
+
         if (this->solver_type == "implicit_euler") {
             Fem::Matrix Global(conf.node_number, conf.node_number);
             for(int i=0; i<conf.node_number; i++){
@@ -701,6 +703,10 @@ namespace Fem {
         else {
             std::cout<<"Unknown solver type\n";
         }
+
+        std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+
+        std::cout << "Solving time = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
     }
 }
 

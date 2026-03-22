@@ -22,7 +22,7 @@
 
 MainWindow::MainWindow()
 {
-    //SetConfigFlags(FLAG_WINDOW_RESIZABLE);
+    SetConfigFlags(FLAG_WINDOW_RESIZABLE);
     InitWindow(screenWidth, screenHeight, "easyFEM");
     SetTargetFPS(60);
     rlImGuiSetup(true);
@@ -62,11 +62,14 @@ MainWindow::MainWindow()
         BeginDrawing();
         ClearBackground(RAYWHITE);
 
+        int currentWidth = GetRenderWidth();
+        int currentHeight = GetRenderHeight();
+
         // ------------------ IMGUI LAYOUT ------------------
         rlImGuiBegin();
 
         ImGui::SetNextWindowPos({0,0}, ImGuiCond_Always);
-        ImGui::SetNextWindowSize({(float)screenWidth,(float)screenHeight}, ImGuiCond_Always);
+        ImGui::SetNextWindowSize({(float)currentWidth,(float)currentHeight}, ImGuiCond_Always);
         ImGui::Begin("Root", nullptr,
                     ImGuiWindowFlags_NoDecoration |
                     ImGuiWindowFlags_NoBringToFrontOnFocus);
@@ -269,7 +272,7 @@ MainWindow::MainWindow()
             ImGui::EndChild();
         }
 
-        ImGui::EndChild();
+        ImGui::EndChild(); //koniec lewego panelu
 
         ImGui::SameLine();
 
@@ -285,29 +288,27 @@ MainWindow::MainWindow()
 
         // ------------------ CAMERA INTERACTION ------------------
         // Only pan/zoom when hovering MainPanel
+        camera.offset = { panelMin.x + panelSize.x / 2.0f, panelMin.y + panelSize.y / 2.0f };
         if (panelHover)
         {
-            // Pan
             if (IsMouseButtonDown(MOUSE_BUTTON_LEFT))
             {
                 Vector2 delta = GetMouseDelta();
                 camera.target.x -= delta.x / camera.zoom;
                 camera.target.y -= delta.y / camera.zoom;
             }
-            // Zoom
             float wheel = GetMouseWheelMove();
             if (wheel != 0.0f)
             {
                 camera.zoom += wheel * mouseSensitivity;
                 if (camera.zoom < 10.0f) camera.zoom = 10.0f;
             }
-
         }
 
         // ------------------ MAIN WINDOW ------------------
         // Creating scissors to cut main view part for the raylib
         int sx = (int)panelMin.x;
-        int sy = screenHeight - (int)(panelMin.y + panelSize.y);
+        int sy = currentHeight - (int)(panelMin.y + panelSize.y);
         int sw = (int)panelSize.x;
         int sh = (int)panelSize.y;
 
@@ -318,8 +319,8 @@ MainWindow::MainWindow()
             // Whole rendering is being done here
 
             if(show_grid_bool){
-                //show_adaptive_grid(camera, BLUE, RED);
-                show_grid_dim(camera);
+                show_adaptive_grid_dim(camera);
+                //show_grid_dim(camera);
             }
 
             //rysowanie punktów i wielokątów
