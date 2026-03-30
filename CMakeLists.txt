@@ -25,7 +25,9 @@ set(SOURCE_FILES
         src/saving_data.cpp
         src/saving_data.h
         src/visual/visualisation.cpp
-        src/visual/visualisation.h)
+        src/visual/visualisation.h
+        src/mesh/afm.cpp
+        src/mesh/afm.h)
 
 add_executable(${PROJECT_NAME} ${SOURCE_FILES})
 
