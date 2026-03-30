@@ -3,6 +3,7 @@
 #include <utility>
 
 #include "matrix/matrix.h"
+#include  "../progress_bar.h"
 
 namespace Fem{
     extern
@@ -10,8 +11,6 @@ namespace Fem{
     float N1(float xi, float eta);
     float N2(float xi, float eta);
     float N3(float xi, float eta);
-
-    void showProgress(int current, int max);
 
     struct BC_node{
         int id;

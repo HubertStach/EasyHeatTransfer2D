@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include "../progress_bar.h"
 
 struct Point {
     int id;

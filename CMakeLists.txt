@@ -33,7 +33,9 @@ set(SOURCE_FILES
         src/mesh/afm.cpp
         src/mesh/afm.h
         src/solver/cholesky_ldl.cpp
-        src/solver/cholesky_ldl.h)
+        src/solver/cholesky_ldl.h
+        src/progress_bar.cpp
+        src/progress_bar.h)
 
 add_executable(${PROJECT_NAME} ${SOURCE_FILES})
 

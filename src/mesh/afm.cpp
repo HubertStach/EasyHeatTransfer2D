@@ -1,5 +1,6 @@
 #include "afm.h"
 #include <cmath>
+#include <iostream>
 #include <limits>
 
 AdvancingFront::AdvancingFront(const std::vector<std::pair<double, double>>& allPoints, const std::vector<int>& boundaryIndices)
@@ -129,13 +130,17 @@ bool AdvancingFront::is_valid_delaunay(const Point* p1, const Point* p2, const P
 
 void AdvancingFront::collapse() {
     if (!head || frontSize < 3) return;
-
     FrontNode* cur = head;
     int maxIterations = points.size() * 100;
     int iter = 0;
 
+    int numInteriorPoints = points.size() - numBoundaryPoints;
+    int expectedTriangles = 2 * numInteriorPoints + numBoundaryPoints - 2;
+
+    std::cout<<"Starting Advancing Front Method for Mesh generation...\n";
     while (frontSize > 3 && iter < maxIterations) {
         iter++;
+        showProgress(triangles.size(), expectedTriangles);
 
         Point* pCur = cur->point;
         Point* pNext = cur->next->point;
@@ -191,4 +196,5 @@ void AdvancingFront::collapse() {
 
         clearFront();
     }
+    std::cout<<"\n";
 }
