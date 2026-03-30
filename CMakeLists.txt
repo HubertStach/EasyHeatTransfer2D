@@ -8,6 +8,10 @@ set(CMAKE_CXX_STANDARD 17)
 # ===== Dependencies =====
 include(FetchContent)
 
+# Eigen - header-only library
+set(EIGEN_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include/Eigen")
+include_directories(${EIGEN_INCLUDE_DIR})
+
 include(cmake/raylib.cmake)
 include(cmake/imgui.cmake)
 include(cmake/rlimgui.cmake)
@@ -18,7 +22,7 @@ set(SOURCE_FILES
     src/main_window.cpp
     src/mesh/geometry.cpp
     src/mes/mes.cpp
-    src/gauss/gauss.cpp
+        src/solver/gauss.cpp
     src/mes/matrix/matrix.cpp
     src/app_ui/axis.cpp
     src/app_ui/grid.cpp
@@ -27,7 +31,9 @@ set(SOURCE_FILES
         src/visual/visualisation.cpp
         src/visual/visualisation.h
         src/mesh/afm.cpp
-        src/mesh/afm.h)
+        src/mesh/afm.h
+        src/solver/cholesky_ldl.cpp
+        src/solver/cholesky_ldl.h)
 
 add_executable(${PROJECT_NAME} ${SOURCE_FILES})
 
