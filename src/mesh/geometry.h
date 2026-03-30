@@ -1,7 +1,7 @@
 #pragma once
 #include <vector>
-
 #include "raylib.h"
+#include "afm.h"
 
 namespace geo {
     struct Bc {
@@ -54,6 +54,7 @@ namespace geo {
         std::vector<Edge> initial_edges;
         std::vector<Triangle> triangles;
         std::vector<Polygon> polygons;
+        AdvancingFront* afm=nullptr;
 
         bool mesh_created = false;
 
@@ -72,7 +73,8 @@ namespace geo {
         void triangulate();
 
         bool point_in_mesh(float x, float y);
-        void cut_ext_elements();
+        void create_nodes(float spacing);
+        void init_afm();
         void create_mesh(float spacing);
         
 
