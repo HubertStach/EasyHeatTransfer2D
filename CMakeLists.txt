@@ -8,6 +8,10 @@ set(CMAKE_CXX_STANDARD 17)
 # ===== Dependencies =====
 include(FetchContent)
 
+# Eigen - header-only library
+set(EIGEN_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include/Eigen")
+include_directories(${EIGEN_INCLUDE_DIR})
+
 include(cmake/raylib.cmake)
 include(cmake/imgui.cmake)
 include(cmake/rlimgui.cmake)
