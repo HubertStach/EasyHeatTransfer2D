@@ -8,7 +8,8 @@
 #include <algorithm>
 
 #include "mes.h"
-#include "../gauss/gauss.h"
+#include "../solver/gauss.h"
+#include "../solver/cholesky_ldl.h"
 
 namespace Fem {
     constexpr float bc_pc_xi[6] = {-0.57735f, 0.57735f, 0.57735f, -0.57735f, -1.0f, -1.0f};
@@ -613,7 +614,8 @@ namespace Fem {
                     t1[j] = rhs;
                 }
 
-                t1 = Gauss(Global, t1);
+                //t1 = Gauss(Global, t1);
+                t1 = cholesky_ldl(Global, t1);
 
                 //std::cout << "\nMIN: " << *std::min_element(t.begin(), t.end()) << " MAX: " << *std::max_element(t.begin(), t.end()) << std::endl;
 
@@ -686,7 +688,8 @@ namespace Fem {
                     t1[j] = rhs;
                 }
 
-                t1 = Gauss(Global, t1);
+                //t1 = Gauss(Global, t1);
+                t1 = cholesky_ldl(Global, t1);
 
                 //std::cout << "\nMIN: " << *std::min_element(t.begin(), t.end()) << " MAX: " << *std::max_element(t.begin(), t.end()) << std::endl;
 

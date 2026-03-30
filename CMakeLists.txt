@@ -22,7 +22,7 @@ set(SOURCE_FILES
     src/main_window.cpp
     src/mesh/geometry.cpp
     src/mes/mes.cpp
-    src/gauss/gauss.cpp
+        src/solver/gauss.cpp
     src/mes/matrix/matrix.cpp
     src/app_ui/axis.cpp
     src/app_ui/grid.cpp
@@ -31,7 +31,9 @@ set(SOURCE_FILES
         src/visual/visualisation.cpp
         src/visual/visualisation.h
         src/mesh/afm.cpp
-        src/mesh/afm.h)
+        src/mesh/afm.h
+        src/solver/cholesky_ldl.cpp
+        src/solver/cholesky_ldl.h)
 
 add_executable(${PROJECT_NAME} ${SOURCE_FILES})
 
