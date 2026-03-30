@@ -14,8 +14,6 @@ Mesh is created by using advancing front method [1]
 
     Add Dirichlet B.C.
 
-    Maybe add faster solver
-
     Create proper documentation
 
 
