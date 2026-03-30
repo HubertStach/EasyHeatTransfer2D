@@ -431,7 +431,241 @@ void geo::Mesh::interpolate_bc_points(float spacing)
     this->edges = new_edges;
 }
 
-void geo::Mesh::create_nodes(float spacing) {
+std::vector<geo::Node> geo::Mesh::super_triangle()
+{
+    float max_x, max_y, min_x, min_y;
+
+    max_x = nodes[0].x;
+    max_y = nodes[0].y;
+    min_x = nodes[0].x;
+    min_y = nodes[0].y;
+
+    for(auto&it:nodes){
+        if(it.x > max_x){
+            max_x = it.x;
+        }
+
+        if(it.x < min_x){
+            min_x = it.x;
+        }
+
+        if(it.y > max_y){
+            max_y = it.y;
+        }
+
+        if(it.y < min_y){
+            min_y = it.y;
+        }
+    }
+
+    float w = max_x - min_x;
+    float h = max_y - min_y;
+
+    Node p1(min_x - w*0.1f, min_y-h);
+    Node p2(min_x+w*1.7f, min_y+h*0.5f);
+    Node p3(min_x-w*0.1f, min_y+h*2.0f);
+
+    std::vector<geo::Node> result = {p1, p2, p3};
+    return result;
+}
+
+bool geo::Mesh::inside_circumcircle(geo::Triangle tr, int node_id)
+{
+    geo::Node A = this->nodes[tr.node_ids[0]];
+    geo::Node B = this->nodes[tr.node_ids[1]];
+    geo::Node C = this->nodes[tr.node_ids[2]];
+    geo::Node D = this->nodes[node_id];
+
+    double adx = A.x - D.x;
+    double ady = A.y - D.y;
+    double bdx = B.x - D.x;
+    double bdy = B.y - D.y;
+    double cdx = C.x - D.x;
+    double cdy = C.y - D.y;
+
+    double bcdet = bdx * cdy - bdy * cdx;
+    double cadet = cdx * ady - cdy * adx;
+    double abdet = adx * bdy - ady * bdx;
+
+    double alift = adx * adx + ady * ady;
+    double blift = bdx * bdx + bdy * bdy;
+    double clift = cdx * cdx + cdy * cdy;
+
+    double det = alift * bcdet + blift * cadet + clift * abdet;
+
+    double area_ABC = (B.x - A.x) * (C.y - A.y) - (C.x - A.x) * (B.y - A.y);
+
+    if (area_ABC == 0.0) {
+        return false;
+    }
+
+    return (det * area_ABC > 0);
+}
+
+void geo::Mesh::circumcenter(const geo::Triangle &tr, geo::Node &center) {
+    geo::Node A = this->nodes[tr.node_ids[0]];
+    geo::Node B = this->nodes[tr.node_ids[1]];
+    geo::Node C = this->nodes[tr.node_ids[2]];
+
+    const double D = 2*(A.x*(B.y-C.y)+B.x*(C.y-A.y)+C.x*(A.y-B.y));
+
+    if (std::abs(D) < 1e-10f) {
+        return;
+    }
+
+    const double X = (1/D)*((pow(A.x,2)+pow(A.y,2))*(B.y-C.y) + (pow(B.x,2)+pow(B.y,2))*(C.y-A.y)+
+        (pow(C.x,2)+pow(C.y,2))*(A.y-B.y));
+
+    const double Y = (1/D)*((pow(A.x,2)+pow(A.y,2))*(C.x-B.x) + (pow(B.x,2)+pow(B.y,2))*(A.x-C.x)+
+        (pow(C.x,2)+pow(C.y,2))*(B.x-A.x));
+
+    geo::Node temp(X, Y, false);
+
+    center = temp;
+}
+
+bool geo::Mesh::same_triangle(geo::Triangle A, geo::Triangle B )
+{
+
+    int matches = 0;
+
+    for (const int node_id : A.node_ids) {
+        for (const int j : B.node_ids) {
+            if ((node_id == j) && (node_id == j)) {
+                matches++;
+                break;
+            }
+        }
+    }
+
+    return matches == 3;
+}
+
+bool geo::Mesh::is_boundary_edge(std::vector<geo::Triangle> &triangles, geo::Edge edge)
+{
+    int count = 0;
+
+    for (const auto& triangle : triangles) {
+        for (int i=0; i<3; i++) {
+            if ((triangle.node_ids[i] == edge.node_ids[0] && triangle.node_ids[(i+1)%3] == edge.node_ids[1]) ||
+                (triangle.node_ids[(i+1)%3] == edge.node_ids[0] && triangle.node_ids[i] == edge.node_ids[1]))
+            {
+                count++;
+                if (count > 1) return false;
+            }
+        }
+    }
+    return count == 1;
+}
+
+//algorytm bowyera-watsona
+void geo::Mesh::triangulate()
+{
+    size_t original_nodes_count = this->nodes.size();
+    if (original_nodes_count < 3) {
+        return;
+    }
+
+    std::vector<geo::Node> original_nodes = this->nodes;
+
+    std::vector<geo::Node> super_triangle_nodes = this->super_triangle();
+    this->nodes.insert(this->nodes.begin(), super_triangle_nodes.begin(), super_triangle_nodes.end());
+
+    std::vector<geo::Triangle> triangulation;
+    triangulation.emplace_back(0, 1, 2);
+
+
+    for (size_t i = 0; i < original_nodes_count; ++i) {
+        size_t node_id = i + 3;
+
+        std::vector<geo::Triangle> bad_triangles;
+        std::vector<geo::Edge> polygon_edges;
+
+        for (const geo::Triangle& tr : triangulation) {
+            if (inside_circumcircle(tr, node_id)) {
+                bad_triangles.push_back(tr);
+            }
+        }
+
+        for (const auto& bad_tr : bad_triangles) {
+            int n[3] = {bad_tr.node_ids[0], bad_tr.node_ids[1], bad_tr.node_ids[2]};
+            for (int j = 0; j < 3; ++j) {
+                geo::Edge edge(n[j], n[(j + 1) % 3]);
+
+                bool is_shared = false;
+                for (const auto& other_bad_tr : bad_triangles) {
+                    if (&bad_tr == &other_bad_tr) continue;
+
+                    int other_n[3] = {other_bad_tr.node_ids[0], other_bad_tr.node_ids[1], other_bad_tr.node_ids[2]};
+
+                    for (int k = 0; k < 3; ++k) {
+                        if ((edge.node_ids[0] == other_n[k] && edge.node_ids[1] == other_n[(k + 1) % 3]) ||
+                            (edge.node_ids[0] == other_n[(k + 1) % 3] && edge.node_ids[1] == other_n[k])) {
+                            is_shared = true;
+                            break;
+                        }
+                    }
+                    if (is_shared) break;
+                }
+
+                if (!is_shared) {
+                    polygon_edges.push_back(edge);
+                }
+            }
+        }
+
+        std::vector<geo::Triangle> temp_triangulation;
+        for (const auto& tr : triangulation) {
+            bool is_bad = false;
+            for (const auto& bad_tr : bad_triangles) {
+                if (same_triangle(tr, bad_tr)) {
+                    is_bad = true;
+                    break;
+                }
+            }
+            if (!is_bad) {
+                temp_triangulation.push_back(tr);
+            }
+        }
+        triangulation = temp_triangulation;
+
+        for (const auto& edge : polygon_edges) {
+            triangulation.emplace_back(edge.node_ids[0], edge.node_ids[1], node_id);
+        }
+    }
+
+    this->nodes = original_nodes;
+
+    this->triangles.clear();
+    for (const auto& tr : triangulation) {
+        if (tr.node_ids[0] >= 3 && tr.node_ids[1] >= 3 && tr.node_ids[2] >= 3) {
+            this->triangles.emplace_back(tr.node_ids[0] - 3, tr.node_ids[1] - 3, tr.node_ids[2] - 3);
+        }
+    }
+}
+
+bool geo::Mesh::point_in_mesh(float x, float y) {
+    bool inside = false;
+    size_t count = this->initial_bc_nodes.size();
+
+    for (size_t i = 0, j = count - 1; i < count; j = i++) {
+        float xi = this->initial_bc_nodes[i].x;
+        float yi = this->initial_bc_nodes[i].y;
+        float xj = this->initial_bc_nodes[j].x;
+        float yj = this->initial_bc_nodes[j].y;
+
+        bool intersect = ((yi > y) != (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+
+        if (intersect) {
+            inside = !inside;
+        }
+    }
+
+    return inside;
+}
+
+
+void geo::Mesh::create_nodes_SH_LO(float spacing) {
     // -------------------------------------------------------
     // generowanie punktów (wg S.H. Lo, 1985)
 
@@ -495,6 +729,68 @@ void geo::Mesh::create_nodes(float spacing) {
     }
 }
 
+
+void geo::Mesh::create_nodes_2(float spacing) {
+    //początkowa triangulacja
+    this->triangulate();
+
+    //liczymy średnią wielkość trójkątów
+    float mean_size=0.0f;
+    float sum_size=0.0f;
+
+    for(geo::Triangle tr:triangles){
+        sum_size += tr_size(tr, this->nodes);
+    }
+    mean_size = sum_size/static_cast<int>(triangles.size());
+
+    constexpr float divider = (4.0f / 1.73205f);
+
+    int max_iter = 10;
+    int current_iter = 0;
+    while((std::sqrt(divider*mean_size) > spacing) && (current_iter < max_iter)){
+        current_iter++;
+        //std::cout<<"sqrt("<<divider<<"*"<<mean_size<<") = "<<std::sqrt(divider*mean_size)<<" <= " << spacing<<"\n";
+
+        sum_size=0.0f;
+        //liczymy srednia wielkosc trojkata
+        for(geo::Triangle tr:triangles){
+            sum_size += tr_size(tr, this->nodes);
+        }
+        mean_size = sum_size/static_cast<int>(triangles.size());
+
+
+        //dodajemy nowe punkty
+        for(geo::Triangle &tr:this->triangles){
+
+            if(tr_size(tr, this->nodes) > mean_size){
+
+                float x_p = (this->nodes[tr.node_ids[0]].x +this->nodes[tr.node_ids[1]].x+this->nodes[tr.node_ids[2]].x) /3;
+                float y_p = (this->nodes[tr.node_ids[0]].y +this->nodes[tr.node_ids[1]].y+this->nodes[tr.node_ids[2]].y) /3;
+
+                if (point_in_mesh(x_p, y_p)) {
+                    geo::Node center(x_p, y_p, false);
+                    this->nodes.push_back(center);
+                }
+
+
+                //wzięta część z:
+                //Chew, L.. (1989). Guaranteed-quality triangular meshes.
+                //dodaje punkty wewnątrz okręgów opisanych na trójkątach a nie w ich środkach
+                /*
+                geo::Node center;
+                this->circumcenter(tr, center);
+                if (point_in_mesh(center.x, center.y)) {
+                    this->nodes.push_back(center);
+                }*/
+            }
+
+        }
+
+        this->triangulate();
+        //std::cout<<mean_size<<'\n';
+    }
+}
+
 void geo::Mesh::init_afm() {
     std::vector<std::pair<double, double>> allPoints;
     std::vector<int> bc_node_ids;
@@ -550,7 +846,8 @@ void geo::Mesh::create_mesh(float spacing)
     // 2. Interpolujemy punkty na brzegach
     this->interpolate_bc_points(spacing);
     // 3. Generujemy punkty wewnątrz (wg S.H. Lo, 1985)
-    this->create_nodes(spacing);
+    this->create_nodes_SH_LO(spacing);
+    //this->create_nodes_2(spacing);
     // 4. Inicjowanie frontu
     this->init_afm();
     // 5. Uruchomienie frontu

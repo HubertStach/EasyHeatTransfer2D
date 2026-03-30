@@ -68,12 +68,15 @@ namespace geo {
         void interpolate_bc_points(float spacing);
         std::vector<geo::Node> super_triangle();
         bool inside_circumcircle(geo::Triangle tr, int node_id);
+        void circumcenter(const geo::Triangle &tr, geo::Node &center);
         bool same_triangle(geo::Triangle A, geo::Triangle B);
         static bool is_boundary_edge(std::vector<geo::Triangle> &triangles, geo::Edge edge);
         void triangulate();
-
         bool point_in_mesh(float x, float y);
-        void create_nodes(float spacing);
+
+        void create_nodes_SH_LO(float spacing);
+        void create_nodes_2(float spacing);
+
         void init_afm();
         void create_mesh(float spacing);
         
