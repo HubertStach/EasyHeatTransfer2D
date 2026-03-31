@@ -3,7 +3,7 @@
 #include <stdexcept>
 
 #include "gauss.h"
-/*
+
 std::vector<double> Gauss(Fem::Matrix& A, std::vector<double>& b) {
     int n = A.getRows();
     Fem::Matrix augmentedMatrix = A;
@@ -38,9 +38,9 @@ std::vector<double> Gauss(Fem::Matrix& A, std::vector<double>& b) {
 
     return b;
 }
-*/
 
-std::vector<double> Gauss(Fem::Matrix& A, std::vector<double>& b) {
+
+std::vector<double> Gauss_pivot(Fem::Matrix& A, std::vector<double>& b) {
     int n = A.getRows();
     if ((int)b.size() != n) {
         throw std::invalid_argument("Gauss: size of b must equal number of rows of A");

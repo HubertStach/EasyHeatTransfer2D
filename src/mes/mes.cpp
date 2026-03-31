@@ -587,6 +587,7 @@ namespace Fem {
                 }
 
                 //t1 = Gauss(Global, t1);
+                //t1 = Gauss_pivot(Global, t1);
                 t1 = cholesky_ldl(Global, t1);
 
                 //std::cout << "\nMIN: " << *std::min_element(t.begin(), t.end()) << " MAX: " << *std::max_element(t.begin(), t.end()) << std::endl;
