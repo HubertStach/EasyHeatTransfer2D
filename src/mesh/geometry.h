@@ -1,4 +1,5 @@
 #pragma once
+#include <string>
 #include <vector>
 #include "raylib.h"
 #include "afm.h"
@@ -87,6 +88,13 @@ namespace geo {
         void draw_tr();
         void draw_tr(std::vector<double> &temp, float max, float min) const;
         void draw_tr_grad(std::vector<double> &temp, float max, float min) const;
+
+        //-------Ładowanie siatki---------
+        void load_nodes(const std::string& filepath);
+        void load_tr_elements(const std::string& filepath);
+        void load_bcs(const std::string& filepath);
+        void reconstruct_edges_tr();
+        void load_mesh_from_txt(const std::string& filepath = "Data/fem_data.txt");
     };
 
     float len(geo::Node A, geo::Node B);

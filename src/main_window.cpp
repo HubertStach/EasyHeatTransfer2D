@@ -88,6 +88,11 @@ MainWindow::MainWindow()
             clean_vtu_files();
             std::cout<<"cleaning vtu files...\n";
         }
+        if (ImGui::Button("Load mesh")) {
+            mesh.load_mesh_from_txt();
+            mesh_created = true;
+            problem_solved = false;
+        }
 
         ImGui::BeginChild("##child1", ImVec2(0, 300), true);
         ImGui::Text("Mesh settings");

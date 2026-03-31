@@ -4,7 +4,11 @@
 
 #include "raylib.h"
 #include <cmath>
+#include <fstream>
 #include <iostream>
+#include <map>
+#include <sstream>
+
 #include "rlgl.h"
 #include "imgui.h"
 
@@ -338,6 +342,179 @@ void geo::Mesh::draw_tr_grad(std::vector<double> &temp, float max, float min) co
 
     // Kończymy rysowanie
     rlEnd();
+}
+
+
+//---------------Ładowanie siatki------------------
+
+void geo::Mesh::load_nodes(const std::string &filepath) {
+    std::vector<Node> loaded_nodes;
+    std::fstream file;
+
+    file.open(filepath);
+    if(!file.good()){
+        std::cout << "Couldn't load text file\n";
+        return ;
+    }
+
+    std::string line;
+    bool node_selection = false;
+
+    while (std::getline(file, line)) {
+        if (line == "*Nodes") {
+            node_selection = true;
+            continue;
+        }
+
+        if (line == "*Elements" || line == "*BC") {
+            node_selection = false;
+        }
+
+        if (node_selection) {
+            int id;
+            float x, y;
+            char comma;
+            std::istringstream iss(line);
+            if (iss >> id >> comma >> x >> comma >> y) {
+                loaded_nodes.emplace_back(x*100, y*100, false);
+            }
+        }
+    }
+    file.close();
+    this->nodes = loaded_nodes;
+}
+
+void geo::Mesh::load_tr_elements(const std::string &filepath) {
+    std::vector<Triangle> tr_elements;
+    std::fstream file;
+
+    file.open(filepath);
+    if(!file.good()){
+        std::cout << "Couldn't load text file\n";
+        return ;
+    }
+
+    std::string line;
+    bool tr_selection = false;
+
+    while (std::getline(file, line)) {
+        if (line == "*Elements") {
+            tr_selection = true;
+            continue;
+        }
+
+        if (line == "*Nodes" || line == "*BC") {
+            tr_selection = false;
+        }
+
+        if (tr_selection) {
+            int id;
+            int node_id1, node_id2, node_id3;
+            char comma;
+            std::istringstream iss(line);
+            if (iss >> id >> comma >> node_id1 >> comma >> node_id2 >> comma >> node_id3) {
+                tr_elements.emplace_back(node_id1, node_id2, node_id3);
+            }
+        }
+    }
+    file.close();
+    this->triangles = tr_elements;
+}
+
+void geo::Mesh::load_bcs(const std::string &filepath) {
+    std::fstream file;
+
+    file.open(filepath);
+    if(!file.good()){
+        std::cout << "Couldn't load text file\n";
+        return ;
+    }
+
+    std::string line;
+    bool bc_selection = false;
+
+    while (std::getline(file, line)) {
+        if (line == "*BC") {
+            bc_selection = true;
+            continue;
+        }
+
+        if (line == "*Nodes" || line == "*Elements") {
+            bc_selection = false;
+        }
+
+        if (bc_selection) {
+            int node_id;
+            float flux, alfa, t_ext;
+            char comma;
+            std::istringstream iss(line);
+            if (iss >> node_id >> comma >> flux >> comma >> alfa >> comma >> t_ext) {
+                this->nodes[node_id].bc.flux = flux;
+                this->nodes[node_id].bc.alfa = alfa;
+                this->nodes[node_id].bc.t_ext = t_ext;
+                this->nodes[node_id].bc.is_bc = true;
+                this->nodes[node_id].bc.initialised = true;
+
+            }
+            else {
+                std::cout << "Failed to parse line: " << line << "\n"; // Debug output
+            }
+        }
+    }
+
+    file.close();
+}
+
+//
+void geo::Mesh::reconstruct_edges_tr() {
+    this->edges.clear();
+
+    std::map<std::pair<int, int>, int> edge_count;
+
+    for (const geo::Triangle& tr : this->triangles) {
+        for (int i = 0; i < 3; ++i) {
+            int n1 = tr.node_ids[i];
+            int n2 = tr.node_ids[(i + 1) % 3];
+
+            int min_n = std::min(n1, n2);
+            int max_n = std::max(n1, n2);
+
+            edge_count[{min_n, max_n}]++;
+        }
+    }
+
+    for (const auto& pair : edge_count) {
+        if (pair.second == 1) {
+            int n1 = pair.first.first;
+            int n2 = pair.first.second;
+
+            geo::Edge new_edge(n1, n2);
+
+            if (this->nodes[n1].bc.is_bc && this->nodes[n2].bc.is_bc) {
+                new_edge.bc_edge.is_bc = true;
+
+                if (this->nodes[n1].bc.initialised && this->nodes[n2].bc.initialised) {
+                    new_edge.bc_edge.initialised = true;
+                    new_edge.bc_edge.flux = this->nodes[n1].bc.flux;
+                    new_edge.bc_edge.alfa = this->nodes[n1].bc.alfa;
+                    new_edge.bc_edge.t_ext = this->nodes[n1].bc.t_ext;
+                }
+            }
+
+            this->edges.push_back(new_edge);
+        }
+    }
+
+    this->initial_edges = this->edges;
+}
+
+
+void geo::Mesh::load_mesh_from_txt(const std::string& filepath) {
+    this->load_nodes(filepath);
+    this->load_tr_elements(filepath);
+    this->load_bcs(filepath);
+    this->reconstruct_edges_tr();
+    this->mesh_created = true;
 }
 
 
