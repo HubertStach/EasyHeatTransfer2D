@@ -28,7 +28,7 @@ void save_fem_data(geo::Mesh &mesh, Fem::GlobalData conf) {
     plik << "Density " << conf.density << "\n";
     plik << "SpecificHeat " << conf.specific_heat << "\n";
     plik << "Nodes_number " << mesh.nodes.size() << "\n";
-    plik << "Elements_number " << mesh.triangles.size() << "\n";
+    plik << "Triangle_number " << mesh.triangles.size() << "\n";
 
     // 2. zapis siatki
     // 2.1 zapis punktów
@@ -38,7 +38,7 @@ void save_fem_data(geo::Mesh &mesh, Fem::GlobalData conf) {
     }
 
     // 2.2 zapis elementów
-    plik << "*Elements\n";
+    plik << "*Triangles\n";
     for (size_t i = 0; i < mesh.triangles.size(); i++) {
         plik << i << ", "
              << mesh.triangles[i].node_ids[0] << ", "
