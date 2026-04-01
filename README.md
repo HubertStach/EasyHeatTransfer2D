@@ -5,10 +5,6 @@ EasyFEM lets you solve nonstationary heat transfer problem using finite element 
 Mesh is created by using advancing front method [1]
 
 ## ToDo
-        
-    Add loading problem from .txt file
-
-    Add quad elements
     
     Add loading and transfering abaqus mesh .tmp to .txt file
 

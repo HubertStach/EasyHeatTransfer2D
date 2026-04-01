@@ -275,7 +275,6 @@ void geo::Mesh::draw_q_grad(std::vector<double> &temp, float max, float min) con
         return Color{r, g, b, 255};
     };
 
-    // Używamy bezpiecznych trójkątów zamiast QUADS
     rlBegin(RL_TRIANGLES);
 
     for (const geo::Quad& q : this->quads) {
@@ -289,20 +288,18 @@ void geo::Mesh::draw_q_grad(std::vector<double> &temp, float max, float min) con
         float t3 = temp[q.node_ids[2]];
         float t4 = temp[q.node_ids[3]];
 
-        // 1. Obliczamy pozycję X, Y oraz Temperaturę dla ŚRODKA czworokąta
         float cx = (node1.x + node2.x + node3.x + node4.x) / 4.0f;
         float cy = (node1.y + node2.y + node3.y + node4.y) / 4.0f;
         float tc = (t1 + t2 + t3 + t4) / 4.0f;
 
-        // 2. Pobieramy kolory wierzchołków
         Color col1 = get_color_for_temp(t1);
         Color col2 = get_color_for_temp(t2);
         Color col3 = get_color_for_temp(t3);
         Color col4 = get_color_for_temp(t4);
-        Color colC = get_color_for_temp(tc); // Kolor centralny
+        Color colC = get_color_for_temp(tc);
 
-        // Wyciągamy rysowanie fragmentu do prostej lambdy,
-        // rysującej trójkąt w 2 kierunkach, aby zabezpieczyć go przed cullingiem (ukryciem przez silnik)
+        //rysujemy trójkąty 2 krotnie aby uniknąć back-cullingu -> trójkąty się nie wyświetlają bo och wektor normalny
+        //jest w drugą stronę od kamery/ekranu
         auto draw_triangle_both_ways = [&](const geo::Node& nA, Color cA, const geo::Node& nB, Color cB) {
             // Rysowanie z jedną rotacją
             rlColor4ub(cA.r, cA.g, cA.b, cA.a); rlVertex2f(nA.x, nA.y);
@@ -315,11 +312,10 @@ void geo::Mesh::draw_q_grad(std::vector<double> &temp, float max, float min) con
             rlColor4ub(cB.r, cB.g, cB.b, cB.a); rlVertex2f(nB.x, nB.y);
         };
 
-        // 3. Rysujemy 4 "wewnętrzne" trójkąty opierające się o wierzchołek centralny
-        draw_triangle_both_ways(node1, col1, node2, col2); // Górny (zależnie od ułożenia)
-        draw_triangle_both_ways(node2, col2, node3, col3); // Prawy
-        draw_triangle_both_ways(node3, col3, node4, col4); // Dolny
-        draw_triangle_both_ways(node4, col4, node1, col1); // Lewy
+        draw_triangle_both_ways(node1, col1, node2, col2);
+        draw_triangle_both_ways(node2, col2, node3, col3);
+        draw_triangle_both_ways(node3, col3, node4, col4);
+        draw_triangle_both_ways(node4, col4, node1, col1);
     }
 
     // Kończymy rysowanie
