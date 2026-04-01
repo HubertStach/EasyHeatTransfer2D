@@ -96,7 +96,7 @@ MainWindow::MainWindow()
         }
         if (ImGui::Button("Load .inp file")){
             load_inp_mesh(mesh);
-            mesh.load_mesh_from_txt();
+            //mesh.load_mesh_from_txt();
             mesh_created = true;
             problem_solved = false;
         }

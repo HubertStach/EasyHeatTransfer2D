@@ -93,10 +93,10 @@ void clean_vtu_files() {
 }
 
 void load_inp_mesh(geo::Mesh &mesh) {
-    std::fstream file_inp("Data/MES_siatka.inp");
+    std::fstream file_inp("Data/mes_siatka.inp");
 
     if(!file_inp.is_open()) {
-        std::cout << "Cannot find MES_siatka.inp file in Data folder!\n";
+        std::cout << "Cannot find mes_siatka.inp file in Data folder!\n";
         return;
     }
 
@@ -119,7 +119,7 @@ void load_inp_mesh(geo::Mesh &mesh) {
             element_quad_selection = false;
             bc_selection = false; // Resetujemy też nową flagę
 
-            if (line.find("*Nodes") != std::string::npos) {
+            if (line.find("*Node") != std::string::npos) {
                 node_selection = true;
             }
             else if (line.find("CPS3") != std::string::npos ||
@@ -153,7 +153,7 @@ void load_inp_mesh(geo::Mesh &mesh) {
             float x, y;
             if (iss >> id >> x >> y) {
                 // Zakładam, że trzeci parametr 'false' to flaga bycia na brzegu (np. is_bc)
-                geo_nodes.emplace_back(x, y, false);
+                geo_nodes.emplace_back(x, -y, false);
             }
         }
         else if (element_tri_selection) {
