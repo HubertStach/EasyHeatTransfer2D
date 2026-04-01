@@ -70,6 +70,7 @@ namespace geo {
         Mesh();
         void add_point(float x, float y, bool is_bc = true);
         void pop_point();
+        void create_edges();
 
         float max_bc_len = 0.0f;
 
@@ -106,6 +107,8 @@ namespace geo {
         void load_bcs(const std::string& filepath);
         void reconstruct_edges();
         void load_mesh_from_txt(const std::string& filepath = "Data/fem_data.txt");
+
+        std::vector<int> get_continuous_edges(int clicked_edge_idx);
     };
 
     float len(geo::Node A, geo::Node B);

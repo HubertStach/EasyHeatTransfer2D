@@ -140,6 +140,7 @@ void geo::Mesh::pop_point()
         this->nodes.clear();
         this->edges.clear();
         this->initial_bc_nodes.clear();
+        this->quads.clear();
         mesh_created = false;
         return;
     }
@@ -165,6 +166,44 @@ void geo::Mesh::pop_point()
         geo::Edge closing(static_cast<int>(s) - 2, 0);
         closing.bc_edge.is_bc = true;
         this->edges.push_back(closing);
+    }
+}
+
+void geo::Mesh::create_edges() {
+    this->edges.clear();
+
+    std::vector<std::pair<int, int>> temp_edges;
+
+    temp_edges.reserve(this->triangles.size() * 3 + this->polygons.size() * 4);
+
+    auto add_edge = [&](int n1, int n2) {
+        temp_edges.emplace_back(std::min(n1, n2), std::max(n1, n2));
+    };
+
+    //zbieramy krawędzie trójkątów
+    for (const auto& tr : this->triangles) {
+        add_edge(tr.node_ids[0], tr.node_ids[1]);
+        add_edge(tr.node_ids[1], tr.node_ids[2]);
+        add_edge(tr.node_ids[2], tr.node_ids[0]);
+    }
+
+    //zbieramy krawędzie czworokątów
+    for (const auto& quad : this->quads) {
+        add_edge(quad.node_ids[0], quad.node_ids[1]);
+        add_edge(quad.node_ids[1], quad.node_ids[2]);
+        add_edge(quad.node_ids[2], quad.node_ids[3]);
+        add_edge(quad.node_ids[3], quad.node_ids[0]);
+    }
+
+    //sortujemy krawędzie
+    std::sort(temp_edges.begin(), temp_edges.end());
+
+    //usuwamy duplikaty
+    temp_edges.erase(std::unique(temp_edges.begin(), temp_edges.end()), temp_edges.end());
+
+    this->edges.reserve(temp_edges.size());
+    for (const auto& ep : temp_edges) {
+        this->edges.emplace_back(ep.first, ep.second);
     }
 }
 
@@ -673,6 +712,91 @@ void geo::Mesh::load_mesh_from_txt(const std::string& filepath) {
     this->reconstruct_edges();
     this->mesh_created = true;
 }
+
+std::vector<int> geo::Mesh::get_continuous_edges(int clicked_edge_idx) {
+    std::vector<int> result;
+
+    if (clicked_edge_idx < 0 || clicked_edge_idx >= static_cast<int>(this->edges.size())) {
+        return result;
+    }
+
+    result.push_back(clicked_edge_idx);
+
+    //zaznaczamy tam które już odwiedziliśmy
+    std::vector<bool> visited(this->edges.size(), false);
+    visited[clicked_edge_idx] = true;
+
+    geo::Edge start_edge = this->edges[clicked_edge_idx];
+    int n1_id = start_edge.node_ids[0];
+    int n2_id = start_edge.node_ids[1];
+
+    // Obliczamy referencyjny wektor kierunkowy (znormalizowany)
+    float dx0 = this->nodes[n2_id].x - this->nodes[n1_id].x;
+    float dy0 = this->nodes[n2_id].y - this->nodes[n1_id].y;
+    float len0 = std::sqrt(dx0 * dx0 + dy0 * dy0);
+
+    if (len0 < 1e-6f) return result;
+
+    float ux = dx0 / len0;
+    float uy = dy0 / len0;
+
+    auto walk = [&](int start_node_id) {
+        int current_node = start_node_id;
+
+        while (true) {
+            int next_edge_idx = -1;
+            int next_node = -1;
+
+            // Szukamy nieodwiedzonej krawędzi połączonej z current_node
+            for (size_t i = 0; i < this->edges.size(); ++i) {
+                if (visited[i]) continue;
+
+                //sąsiad w prawo
+                if (this->edges[i].node_ids[0] == current_node) {
+                    next_edge_idx = i;
+                    next_node = this->edges[i].node_ids[1];
+                    break;
+                }
+                //sąsiad w lewo
+                else if (this->edges[i].node_ids[1] == current_node) {
+                    next_edge_idx = i;
+                    next_node = this->edges[i].node_ids[0];
+                    break;
+                }
+            }
+
+            if (next_edge_idx == -1) break;
+
+            float dx = this->nodes[next_node].x - this->nodes[current_node].x;
+            float dy = this->nodes[next_node].y - this->nodes[current_node].y;
+            float len = std::sqrt(dx * dx + dy * dy);
+
+            if (len < 1e-6f) break;
+
+            float vx = dx / len;
+            float vy = dy / len;
+
+            float cross = ux * vy - uy * vx;
+
+            constexpr float tolerance = 0.01f;
+
+            if (std::abs(cross) < tolerance) {
+                result.push_back(next_edge_idx);
+                visited[next_edge_idx] = true;
+
+                current_node = next_node;
+            } else {
+                break;
+            }
+        }
+    };
+
+    walk(n2_id);
+    walk(n1_id);
+
+    return result;
+}
+
 
 
 //-------------------triangulacja siatki---------------

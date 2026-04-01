@@ -39,6 +39,8 @@ MainWindow::MainWindow()
     float bc_text = 0.0f;
 
     int bc_edge_clicked = -1;
+    //lista przechowuje krawędzie
+    std::vector<int> selected_edges;
     bool bc_options_saved = false;
     bool problem_solved = false;
 
@@ -89,8 +91,17 @@ MainWindow::MainWindow()
             clean_vtu_files();
             std::cout<<"cleaning vtu files...\n";
         }
-        if (ImGui::Button("Load mesh")) {
+        if (ImGui::Button("Load .txt mesh")) {
             mesh.load_mesh_from_txt();
+            mesh_created = true;
+            problem_solved = false;
+        }
+        if (ImGui::Button("Load .inp file")){
+            load_inp_mesh(mesh);
+            //w tym przypadku dajemy możliwość użytkownikowi żeby sam ustawił BCs, jako że czasami są problemy z siatkami
+            //i tym które węzły mają BC, dajemy możliwość dowolnego zdefiniowania brzegu z BC.
+            //Ta funkcja tworzy ze wszytskich krawędzi (też i tych wewnątrz) krawędzie na których można ustawić BC.
+            mesh.create_edges();
             mesh_created = true;
             problem_solved = false;
         }
@@ -113,36 +124,45 @@ MainWindow::MainWindow()
             mesh.nodes.clear();
             mesh.triangles.clear();
             mesh.edges.clear();
+            mesh.quads.clear();
             bc_edge_clicked = -1;
+            selected_edges.clear();
             mesh_created = false;
             problem_solved = false;
         }
         ImGui::Separator();
 
         if (bc_edge_clicked != -1) {
-            int node_id1 = mesh.edges[bc_edge_clicked].node_ids[0];
-            int node_id2 = mesh.edges[bc_edge_clicked].node_ids[1];
+            if (selected_edges.size() > 1) {
+                ImGui::Text("Selected %zu continuous edges", selected_edges.size());
+            } else {
+                ImGui::Text("BC edge %d id clicked", bc_edge_clicked);
+            }
 
-            ImGui::Text("BC edge %d id clicked", bc_edge_clicked);
             ImGui::InputFloat("Flux", &bc_flux);
             ImGui::InputFloat("Alpha", &bc_alfa);
             ImGui::InputFloat("T_ext", &bc_text);
 
             if(ImGui::Button("Save")){
-                mesh.nodes[node_id1].bc.initialised = true;
-                mesh.nodes[node_id1].bc.flux = bc_flux;
-                mesh.nodes[node_id1].bc.alfa = bc_alfa;
-                mesh.nodes[node_id1].bc.t_ext = bc_text;
+                for(int edge_idx : selected_edges) {
+                    int node_id1 = mesh.edges[edge_idx].node_ids[0];
+                    int node_id2 = mesh.edges[edge_idx].node_ids[1];
 
-                mesh.nodes[node_id2].bc.initialised = true;
-                mesh.nodes[node_id2].bc.flux = bc_flux;
-                mesh.nodes[node_id2].bc.alfa = bc_alfa;
-                mesh.nodes[node_id2].bc.t_ext = bc_text;
+                    mesh.nodes[node_id1].bc.initialised = true;
+                    mesh.nodes[node_id1].bc.flux = bc_flux;
+                    mesh.nodes[node_id1].bc.alfa = bc_alfa;
+                    mesh.nodes[node_id1].bc.t_ext = bc_text;
 
-                mesh.edges[bc_edge_clicked].bc_edge.initialised = true;
-                mesh.edges[bc_edge_clicked].bc_edge.flux = bc_flux;
-                mesh.edges[bc_edge_clicked].bc_edge.alfa = bc_alfa;
-                mesh.edges[bc_edge_clicked].bc_edge.t_ext = bc_text;
+                    mesh.nodes[node_id2].bc.initialised = true;
+                    mesh.nodes[node_id2].bc.flux = bc_flux;
+                    mesh.nodes[node_id2].bc.alfa = bc_alfa;
+                    mesh.nodes[node_id2].bc.t_ext = bc_text;
+
+                    mesh.edges[edge_idx].bc_edge.initialised = true;
+                    mesh.edges[edge_idx].bc_edge.flux = bc_flux;
+                    mesh.edges[edge_idx].bc_edge.alfa = bc_alfa;
+                    mesh.edges[edge_idx].bc_edge.t_ext = bc_text;
+                }
 
                 bc_flux = 0.0f;
                 bc_alfa = 0.0f;
@@ -333,6 +353,18 @@ MainWindow::MainWindow()
             //rysowanie punktów i wielokątów
             mesh.draw_edges();
 
+            if (bc_edge_clicked != -1 && !selected_edges.empty()) {
+                for (int edge_idx : selected_edges) {
+                    if (edge_idx >= 0 && edge_idx < (int)mesh.edges.size()) {
+                        int n1 = mesh.edges[edge_idx].node_ids[0];
+                        int n2 = mesh.edges[edge_idx].node_ids[1];
+                        Vector2 p1 = { mesh.nodes[n1].x, mesh.nodes[n1].y };
+                        Vector2 p2 = { mesh.nodes[n2].x, mesh.nodes[n2].y };
+                        DrawLineEx(p1, p2, 3.0f * (1.0f / camera.zoom), MAGENTA);
+                    }
+                }
+            }
+
             if (loading_visual && vis.solved) {
                 if (vis.current_step >= 0 && vis.current_step < vis.time_ids.size()) {
 
@@ -379,8 +411,16 @@ MainWindow::MainWindow()
             int hit_node_id = geo::get_edge_clicked(mesh.edges, mesh.nodes, worldPos.x, worldPos.y);
 
             if (hit_node_id != -1) {
+
                 bc_edge_clicked = hit_node_id;
                 bc_options_saved = false;
+
+                if (mesh_created && (IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT))) {
+                    selected_edges = mesh.get_continuous_edges(hit_node_id);
+                } else {
+                    selected_edges.clear();
+                    selected_edges.push_back(hit_node_id);
+                }
 
                 if (mesh.edges[hit_node_id].bc_edge.initialised) {
                     bc_flux = mesh.edges[hit_node_id].bc_edge.flux;
@@ -391,6 +431,9 @@ MainWindow::MainWindow()
                     bc_alfa = 0.0f;
                     bc_text = 0.0f;
                 }
+            }
+            else {
+                bc_edge_clicked = -1;
             }
         }
         //std::cout<<worldPos.x<<", "<<worldPos.y<<"\n";
@@ -412,6 +455,7 @@ MainWindow::MainWindow()
                 mesh.mesh_created=false;
                 mesh_created=false;
                 bc_edge_clicked = -1;
+                selected_edges.clear();
                 loading_visual = false;
                //std::cout<<mesh.nodes.size()<<"\n";
             }
