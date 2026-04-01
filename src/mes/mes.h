@@ -128,6 +128,7 @@ namespace Fem{
         float specific_heat;
         int node_number;
         int trian_number;
+        int quad_number;
 
         GlobalData(){
             this->total_time=500;
@@ -138,6 +139,7 @@ namespace Fem{
             this->specific_heat=700;
             this->node_number=0;
             this->trian_number=0;
+            this->quad_number=0;
         }
     };
 
@@ -162,8 +164,8 @@ namespace Fem{
     void aggregate_p_vec_q(Matrix &P_vec, Quad element, Matrix &Local);
     //----------------------------
 
-    void write_to_vtu_file(int step, const std::vector<Fem::Node> &nodes, 
-        const std::vector<double> &temp, const std::vector<Fem::Triangle> &elements);
+    void write_to_vtu_file(int step, const std::vector<Fem::Node> &nodes, const std::vector<double> &temp,
+        const std::vector<Fem::Triangle> &elements, const std::vector<Fem::Quad> &quads);
     
     struct Solution{
         Matrix Global_H;
@@ -172,6 +174,7 @@ namespace Fem{
         GlobalData conf;
         std::vector<Node> nodes;
         std::vector<Triangle> triangles;
+        std::vector<Quad> quads;
 
         std::string solver_type;
 
@@ -183,13 +186,10 @@ namespace Fem{
             this->solver_type = solver_type;
             std::string filepath = std::move(filename);
             this->conf = load_configuration(filepath);
-            //std::cout<<"loaded config\n";
             this->nodes = load_nodes(filepath);
-            //std::cout<<"loaded nodes, nodes size = "<<nodes.size()<<std::endl;
             this->triangles = load_triangles(filepath);
-            //std::cout<<"loaded elements, elements size = "<<elements.size()<<std::endl;
+            this->quads = load_quad_elements(filepath);
             this->nodes = load_bc(filepath, this->nodes);
-            //std::cout<<"loaded BC\n";
 
             this->calc_x_char();
 
@@ -200,15 +200,15 @@ namespace Fem{
             this->Global_P = Matrix(conf.node_number,1);
 
             //tworzenie macierzy dla każdego elementu
-            std::cout<<"Assembling elemental matrices...\n";
             int i =0;
             int max_iter = this->triangles.size();
             int c_lump = 0;
             if (this->solver_type == "explicit_euler") {
                 c_lump = 1;
             }
+
+            std::cout<<"Assembling triangular elements matrices...\n";
             for(Triangle &element: this->triangles){
-                
                 element.H_local = calc_local_H_tr(element, this->nodes, this->conf.conductivity);
                 element.H_bc = calc_local_Hbc_tr(element, this->nodes);
                 element.P = calc_p_vec_tr(element, this->nodes);
@@ -225,6 +225,24 @@ namespace Fem{
                 showProgress(i, max_iter);
             }
 
+            i=0;
+            std::cout<<"Assembling quad elements matrices...\n";
+            for (Quad &quad: this->quads) {
+                quad.H_local = calc_local_H_q(quad, this->nodes, this->conf.conductivity);
+                quad.H_bc = calc_local_Hbc_q(quad, this->nodes);
+                quad.P = calc_P_q(quad, this->nodes);
+                quad.C = calc_local_C_q(quad, this->nodes, this->conf.density, this->conf.specific_heat);
+
+                for(int row=0; row<4; row++){
+                    for(int col=0; col<4; col++){
+                        quad.H_local[row][col] += quad.H_bc[row][col];
+                    }
+                }
+
+                i++;
+                showProgress(i, max_iter);
+            }
+
             //agreagacja
             std::cout<<"Agregating matrices...\n";
             i=0;
@@ -232,6 +250,14 @@ namespace Fem{
                 aggregate_tr(this->Global_H, it, it.H_local);
                 aggregate_tr(this->Global_C, it, it.C);
                 aggregate_p_vec_tr(this->Global_P, it, it.P);
+                i++;
+                showProgress(i, max_iter);
+            }
+            i=0;
+            for(Fem::Quad &it:quads){
+                aggregate_q(this->Global_H, it, it.H_local);
+                aggregate_q(this->Global_C, it, it.C);
+                aggregate_p_vec_q(this->Global_P, it, it.P);
                 i++;
                 showProgress(i, max_iter);
             }

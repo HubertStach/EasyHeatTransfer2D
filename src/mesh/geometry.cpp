@@ -411,7 +411,6 @@ void geo::Mesh::load_nodes(const std::string &filepath) {
     }
     file.close();
     this->nodes = loaded_nodes;
-    std::cout<<this->nodes.size()<<"\n";
 }
 
 void geo::Mesh::load_tr_elements(const std::string &filepath) {

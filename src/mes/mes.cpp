@@ -146,10 +146,10 @@ namespace Fem {
     {
         Matrix jacobian(2,2);
 
-        jacobian[0][0] = dN1dxi_q(pc_eta)*nodes[element.node_ids[0]-1].x+Fem::dN2dxi_q(pc_eta)*nodes[element.node_ids[1]-1].x+Fem::dN3dxi_q(pc_eta)*nodes[element.node_ids[2]-1].x+Fem::dN4dxi_q(pc_eta)*nodes[element.node_ids[3]-1].x; //dxdxi
-        jacobian[0][1] = dN1dxi_q(pc_eta)*nodes[element.node_ids[0]-1].y+Fem::dN2dxi_q(pc_eta)*nodes[element.node_ids[1]-1].y+Fem::dN3dxi_q(pc_eta)*nodes[element.node_ids[2]-1].y+Fem::dN4dxi_q(pc_eta)*nodes[element.node_ids[3]-1].y; //dydxi
-        jacobian[1][0] = dN1deta_q(pc_xi)*nodes[element.node_ids[0]-1].x+Fem::dN2deta_q(pc_xi)*nodes[element.node_ids[1]-1].x+Fem::dN3deta_q(pc_xi)*nodes[element.node_ids[2]-1].x+Fem::dN4deta_q(pc_xi)*nodes[element.node_ids[3]-1].x; //dxdeta
-        jacobian[1][1] = dN1deta_q(pc_xi)*nodes[element.node_ids[0]-1].y+Fem::dN2deta_q(pc_xi)*nodes[element.node_ids[1]-1].y+Fem::dN3deta_q(pc_xi)*nodes[element.node_ids[2]-1].y+Fem::dN4deta_q(pc_xi)*nodes[element.node_ids[3]-1].y; //dydeta
+        jacobian[0][0] = dN1dxi_q(pc_eta)*nodes[element.node_ids[0]].x+Fem::dN2dxi_q(pc_eta)*nodes[element.node_ids[1]].x+Fem::dN3dxi_q(pc_eta)*nodes[element.node_ids[2]].x+Fem::dN4dxi_q(pc_eta)*nodes[element.node_ids[3]].x; //dxdxi
+        jacobian[0][1] = dN1dxi_q(pc_eta)*nodes[element.node_ids[0]].y+Fem::dN2dxi_q(pc_eta)*nodes[element.node_ids[1]].y+Fem::dN3dxi_q(pc_eta)*nodes[element.node_ids[2]].y+Fem::dN4dxi_q(pc_eta)*nodes[element.node_ids[3]].y; //dydxi
+        jacobian[1][0] = dN1deta_q(pc_xi)*nodes[element.node_ids[0]].x+Fem::dN2deta_q(pc_xi)*nodes[element.node_ids[1]].x+Fem::dN3deta_q(pc_xi)*nodes[element.node_ids[2]].x+Fem::dN4deta_q(pc_xi)*nodes[element.node_ids[3]].x; //dxdeta
+        jacobian[1][1] = dN1deta_q(pc_xi)*nodes[element.node_ids[0]].y+Fem::dN2deta_q(pc_xi)*nodes[element.node_ids[1]].y+Fem::dN3deta_q(pc_xi)*nodes[element.node_ids[2]].y+Fem::dN4deta_q(pc_xi)*nodes[element.node_ids[3]].y; //dydeta
 
         //std::cout<<Fem::dN1deta(pc_xi)<<"*"<<nodes[element.node_ids[0]-1].x<<"+"<<Fem::dN1deta(pc_xi)<<"*"<<nodes[element.node_ids[1]-1].x<<"+"<<Fem::dN1deta(pc_xi)<<"*"<<nodes[element.node_ids[2]-1].x<<"+"<<Fem::dN1deta(pc_xi)<<"*"<<nodes[element.node_ids[3]-1].x<<"\n";
 
@@ -193,7 +193,7 @@ namespace Fem {
                 continue;
             }
             
-            if (line == "*Triangles" || line == "*BC") {
+            if (line == "*Triangles" || line == "*BC" || line == "*Quads") {
                 node_selection = false;
             }
 
@@ -232,7 +232,7 @@ namespace Fem {
                 continue;
             }
             
-            if (line == "*Nodes" || line == "*BC") {
+            if (line == "*Nodes" || line == "*BC" || line == "*Quads") {
                 element_selection = false;
             }
 
@@ -266,12 +266,12 @@ namespace Fem {
         bool element_selection = false;
 
         while (std::getline(file, line)) {
-            if (line == "*Element") {
+            if (line == "*Quads") {
                 element_selection = true;
                 continue;
             }
 
-            if (line == "*Node" || line == "*BC") {
+            if (line == "*Nodes" || line == "*BC" || line == "*Triangles") {
                 element_selection = false;
             }
 
@@ -317,7 +317,8 @@ namespace Fem {
                 else if (key == "Density") data.density = value;
                 else if (key == "SpecificHeat") data.specific_heat = value;
                 else if (key == "Nodes_number") data.node_number = value;
-                else if (key == "Triangles_number") data.trian_number = value;
+                else if (key == "Triangle_number") data.trian_number = value;
+                else if (key == "Quad_number") data.quad_number= value;
             }
         }
 
@@ -379,6 +380,7 @@ namespace Fem {
         std::cout<<"Specific heat = "<<configuration.specific_heat<<"\n";
         std::cout<<"Number of nodes = "<<configuration.node_number<<"\n";
         std::cout<<"Number of triangles = "<<configuration.trian_number<<"\n";
+        std::cout<<"Number of quads = "<<configuration.quad_number<<"\n";
         std::cout<<"-----------------Configuration-----------------\n";
     }
 
@@ -614,8 +616,8 @@ namespace Fem {
 
         for(int edge=0; edge<4; edge++){
             Fem::Matrix Hbc_edge(4,4);
-            int id1 = element.node_ids[edge]-1;
-            int id2 = element.node_ids[(edge+1)%4]-1;
+            int id1 = element.node_ids[edge];
+            int id2 = element.node_ids[(edge+1)%4];
 
             if(!(nodes[id1].bc.exist && nodes[id2].bc.exist)){
                 continue;
@@ -659,8 +661,8 @@ namespace Fem {
 
         for(int edge=0; edge<4; edge++){
             Fem::Matrix P_edge(4,1);
-            int id1 = element.node_ids[edge]-1;
-            int id2 = element.node_ids[(edge+1)%4]-1;
+            int id1 = element.node_ids[edge];
+            int id2 = element.node_ids[(edge+1)%4];
 
             if(!(nodes[id1].bc.exist && nodes[id2].bc.exist)){
                 continue;
@@ -744,8 +746,8 @@ namespace Fem {
     {
         for (int i = 0; i < 4; i++) {
             for (int j = 0; j < 4; j++) {
-                int glob_i = element.node_ids[i]-1;
-                int glob_j = element.node_ids[j]-1;
+                int glob_i = element.node_ids[i];
+                int glob_j = element.node_ids[j];
 
                 Global[glob_i][glob_j] += Local[i][j];
             }
@@ -755,17 +757,18 @@ namespace Fem {
     void aggregate_p_vec_q(Fem::Matrix &P_vec, Fem::Quad element, Fem::Matrix &Local)
     {
         for(int i=0; i<4; i++){
-            int glob_i = element.node_ids[i]-1;
+            int glob_i = element.node_ids[i];
             P_vec[glob_i][0] += Local[i][0];
         }
     }
 
-    void write_to_vtu_file(int step, const std::vector<Fem::Node> &nodes, const std::vector<double> &temp, const std::vector<Fem::Triangle> &elements)
+    void write_to_vtu_file(int step, const std::vector<Fem::Node> &nodes,
+    const std::vector<double> &temp, const std::vector<Fem::Triangle> &elements,
+    const std::vector<Fem::Quad> &quads)
     {
-
         std::ostringstream fname;
         fname << "sol_" << step << ".vtu";
-        const std::string path = "Data/"+fname.str();
+        const std::string path = "Data/" + fname.str();
 
         std::ofstream out(path);
         if (!out.is_open()) {
@@ -773,47 +776,67 @@ namespace Fem {
             return;
         }
 
+        // Suma wszystkich elementów (trójkąty + czworokąty)
+        size_t total_cells = elements.size() + quads.size();
+
         out << R"(<?xml version="1.0"?>)"
             << "\n<VTKFile type=\"UnstructuredGrid\" version=\"0.1\" byte_order=\"LittleEndian\">\n"
             "  <UnstructuredGrid>\n"
             "    <Piece NumberOfPoints=\"" << nodes.size()
-            << "\" NumberOfCells=\"" << elements.size() << "\">\n";
+            << "\" NumberOfCells=\"" << total_cells << "\">\n";
 
-        // --- 4) Points ---
+        // --- 1) Punkty (Węzły siatki) ---
         out << "      <Points>\n"
             "        <DataArray type=\"Float32\" NumberOfComponents=\"3\" format=\"ascii\">\n";
         out << std::setprecision(6);
-        for (auto& n : nodes) {
+        for (const auto& n : nodes) {
             out << "          " << n.x << " " << n.y << " 0\n";
         }
         out << "        </DataArray>\n"
             "      </Points>\n";
 
-        // --- 5) Cells ---
+        // --- 2) Komórki (Łączność/Topology) ---
         out << "      <Cells>\n"
             "        <DataArray type=\"Int32\" Name=\"connectivity\" format=\"ascii\">\n";
-        for (auto& e : elements) {
-            out << "          "
-                << (e.node_ids[0]) << " "
-                << (e.node_ids[1]) << " "
-                << (e.node_ids[2]) << "\n";
+
+        // Zapisz węzły dla trójkątów
+        for (const auto& e : elements) {
+            out << "          " << e.node_ids[0] << " " << e.node_ids[1] << " " << e.node_ids[2] << "\n";
         }
-        out << "        </DataArray>\n"
-            "        <DataArray type=\"Int32\" Name=\"offsets\" format=\"ascii\">\n";
+        // Zapisz węzły dla czworokątów
+        for (const auto& q : quads) {
+            out << "          " << q.node_ids[0] << " " << q.node_ids[1] << " " << q.node_ids[2] << " " << q.node_ids[3] << "\n";
+        }
+        out << "        </DataArray>\n";
+
+        // --- 3) Przesunięcia (Offsets) ---
+        out << "        <DataArray type=\"Int32\" Name=\"offsets\" format=\"ascii\">\n";
         int offset = 0;
+        // Offsety dla trójkątów (+3 węzły każdy)
         for (size_t i = 0; i < elements.size(); ++i) {
-            offset += 3;  // Zmieniono z 3 na 4 (czworokąt ma 4 węzły)
+            offset += 3;
             out << "          " << offset << "\n";
         }
-        out << "        </DataArray>\n"
-            "        <DataArray type=\"UInt8\" Name=\"types\" format=\"ascii\">\n";
+        // Offsety dla czworokątów (+4 węzły każdy)
+        for (size_t i = 0; i < quads.size(); ++i) {
+            offset += 4;
+            out << "          " << offset << "\n";
+        }
+        out << "        </DataArray>\n";
+
+        // --- 4) Typy elementów (Types) ---
+        // Typ VTK 5 to trójkąt, Typ VTK 9 to czworokąt
+        out << "        <DataArray type=\"UInt8\" Name=\"types\" format=\"ascii\">\n";
         for (size_t i = 0; i < elements.size(); ++i) {
-            out << "          5\n";  // Zmieniono z 5 na 9 (typ VTK_QUAD)
+            out << "          5\n";
+        }
+        for (size_t i = 0; i < quads.size(); ++i) {
+            out << "          9\n";
         }
         out << "        </DataArray>\n"
             "      </Cells>\n";
 
-        // --- 6) PointData: temperatura ---
+        // --- 5) Dane punktowe (Temperatura) ---
         out << "      <PointData Scalars=\"Temperature\">\n"
             "        <DataArray type=\"Float32\" Name=\"Temperature\" format=\"ascii\">\n";
         for (double t : temp) {
@@ -883,7 +906,7 @@ namespace Fem {
                 //std::cout << "\nMIN: " << *std::min_element(t.begin(), t.end()) << " MAX: " << *std::max_element(t.begin(), t.end()) << std::endl;
 
                 if(write_vtu){
-                    write_to_vtu_file((int)i, nodes, t1, triangles);
+                    write_to_vtu_file((int)i, nodes, t1, triangles, quads);
                 }
 
                 showProgress(i, conf.total_time);
@@ -923,7 +946,7 @@ namespace Fem {
                 }
 
                 if(write_vtu){
-                    write_to_vtu_file((int)i, nodes, t1, triangles);
+                    write_to_vtu_file((int)i, nodes, t1, triangles, quads);
                 }
 
                 showProgress(i, conf.total_time);
@@ -957,7 +980,7 @@ namespace Fem {
                 //std::cout << "\nMIN: " << *std::min_element(t.begin(), t.end()) << " MAX: " << *std::max_element(t.begin(), t.end()) << std::endl;
 
                 if(write_vtu){
-                    write_to_vtu_file((int)i, nodes, t1, triangles);
+                    write_to_vtu_file((int)i, nodes, t1, triangles, quads);
                 }
 
                 showProgress(i, conf.total_time);
