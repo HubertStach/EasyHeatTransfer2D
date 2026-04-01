@@ -248,6 +248,84 @@ void geo::Mesh::draw_q() {
     }
 }
 
+void geo::Mesh::draw_q_grad(std::vector<double> &temp, float max, float min) const {
+    auto get_color_for_temp = [max, min](float t_val) -> Color {
+        if (std::fabs(max - min) < 0.0001f) {
+            return GREEN;
+        }
+
+        // Normalizacja do zakresu 0.0 - 1.0
+        float t = (t_val - min) / (max - min);
+        t = std::clamp(t, 0.0f, 1.0f);
+
+        unsigned char r = 0, g = 0, b = 0;
+
+        if (t < 0.5f) {
+            float local_t = t * 2.0f;
+            r = (unsigned char)(255 * local_t);
+            g = (unsigned char)(255 * local_t);
+            b = 255;
+        } else {
+            float local_t = (t - 0.5f) * 2.0f;
+            r = 255;
+            g = (unsigned char)(255 * (1.0f - local_t));
+            b = (unsigned char)(255 * (1.0f - local_t));
+        }
+
+        return Color{r, g, b, 255};
+    };
+
+    // Używamy bezpiecznych trójkątów zamiast QUADS
+    rlBegin(RL_TRIANGLES);
+
+    for (const geo::Quad& q : this->quads) {
+        const geo::Node& node1 = this->nodes[q.node_ids[0]];
+        const geo::Node& node2 = this->nodes[q.node_ids[1]];
+        const geo::Node& node3 = this->nodes[q.node_ids[2]];
+        const geo::Node& node4 = this->nodes[q.node_ids[3]];
+
+        float t1 = temp[q.node_ids[0]];
+        float t2 = temp[q.node_ids[1]];
+        float t3 = temp[q.node_ids[2]];
+        float t4 = temp[q.node_ids[3]];
+
+        // 1. Obliczamy pozycję X, Y oraz Temperaturę dla ŚRODKA czworokąta
+        float cx = (node1.x + node2.x + node3.x + node4.x) / 4.0f;
+        float cy = (node1.y + node2.y + node3.y + node4.y) / 4.0f;
+        float tc = (t1 + t2 + t3 + t4) / 4.0f;
+
+        // 2. Pobieramy kolory wierzchołków
+        Color col1 = get_color_for_temp(t1);
+        Color col2 = get_color_for_temp(t2);
+        Color col3 = get_color_for_temp(t3);
+        Color col4 = get_color_for_temp(t4);
+        Color colC = get_color_for_temp(tc); // Kolor centralny
+
+        // Wyciągamy rysowanie fragmentu do prostej lambdy,
+        // rysującej trójkąt w 2 kierunkach, aby zabezpieczyć go przed cullingiem (ukryciem przez silnik)
+        auto draw_triangle_both_ways = [&](const geo::Node& nA, Color cA, const geo::Node& nB, Color cB) {
+            // Rysowanie z jedną rotacją
+            rlColor4ub(cA.r, cA.g, cA.b, cA.a); rlVertex2f(nA.x, nA.y);
+            rlColor4ub(cB.r, cB.g, cB.b, cB.a); rlVertex2f(nB.x, nB.y);
+            rlColor4ub(colC.r, colC.g, colC.b, colC.a); rlVertex2f(cx, cy);
+
+            // Rysowanie z odwrotną rotacją (gwarantuje widoczność 2D)
+            rlColor4ub(cA.r, cA.g, cA.b, cA.a); rlVertex2f(nA.x, nA.y);
+            rlColor4ub(colC.r, colC.g, colC.b, colC.a); rlVertex2f(cx, cy);
+            rlColor4ub(cB.r, cB.g, cB.b, cB.a); rlVertex2f(nB.x, nB.y);
+        };
+
+        // 3. Rysujemy 4 "wewnętrzne" trójkąty opierające się o wierzchołek centralny
+        draw_triangle_both_ways(node1, col1, node2, col2); // Górny (zależnie od ułożenia)
+        draw_triangle_both_ways(node2, col2, node3, col3); // Prawy
+        draw_triangle_both_ways(node3, col3, node4, col4); // Dolny
+        draw_triangle_both_ways(node4, col4, node1, col1); // Lewy
+    }
+
+    // Kończymy rysowanie
+    rlEnd();
+}
+
 //zastąpione przed draw_tr_grad
 void geo::Mesh::draw_tr(std::vector<double> &temp, float max, float min) const {
     for (const geo::Triangle& tr : this->triangles) {
@@ -348,6 +426,7 @@ void geo::Mesh::draw_tr_grad(std::vector<double> &temp, float max, float min) co
         // Należy zdefiniować kolor ZANIM zdefiniuje się wierzchołek
 
         // Trójkąt pierwszy
+
         rlColor4ub(col1.r, col1.g, col1.b, col1.a);
         rlVertex2f(node1.x, node1.y);
 
@@ -359,6 +438,8 @@ void geo::Mesh::draw_tr_grad(std::vector<double> &temp, float max, float min) co
 
         // Trójkąt drugi (Odwrotna kolejność wierzchołków, odpowiada to rysowaniu
         // dwustronnemu z oryginalnego kodu - DrawTriangle(pos1, pos3, pos2))
+
+
         rlColor4ub(col1.r, col1.g, col1.b, col1.a);
         rlVertex2f(node1.x, node1.y);
 
@@ -367,6 +448,7 @@ void geo::Mesh::draw_tr_grad(std::vector<double> &temp, float max, float min) co
 
         rlColor4ub(col2.r, col2.g, col2.b, col2.a);
         rlVertex2f(node2.x, node2.y);
+
     }
 
     // Kończymy rysowanie

@@ -241,7 +241,6 @@ MainWindow::MainWindow()
                 ImGui::Checkbox("Autoplay", &auto_play);
                 int max_idx = vis.time_ids.size() - 1;
                 ImGui::Text("Krok czasowy: %d (Czas: %d)", vis.current_step, vis.time_ids[vis.current_step]);
-                // To zmienia indeks kolumny, z której czytamy dane
                 ImGui::SliderInt("Oś czasu", &vis.current_step, 0, max_idx);
 
                 if (auto_play) {
@@ -348,6 +347,7 @@ MainWindow::MainWindow()
                     }
 
                     mesh.draw_tr_grad(current_temps, vis.max_temp, vis.min_temp);
+                    mesh.draw_q_grad(current_temps, vis.max_temp, vis.min_temp);
                     //mesh.draw_tr(current_temps, vis.max_temp, vis.min_temp);
                 }
             }
