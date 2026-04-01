@@ -96,7 +96,7 @@ void load_inp_mesh(geo::Mesh &mesh) {
     std::fstream file_inp("Data/mes_siatka.inp");
 
     if(!file_inp.is_open()) {
-        std::cout << "Cannot find mes_siatka.inp file in Data folder!\n";
+        std::cout << "Cannot find Job-1.inp file in Data folder!\n";
         return;
     }
 
@@ -111,13 +111,24 @@ void load_inp_mesh(geo::Mesh &mesh) {
     bool bc_selection = false;
 
     while (std::getline(file_inp, line)) {
+        // Zabezpieczenie przed znakami karetki (CRLF z Windowsa)
+        if (!line.empty() && line.back() == '\r') {
+            line.pop_back();
+        }
+
         if (line.empty()) continue;
+
+        // 1. IGNORUJEMY KOMENTARZE ABAQUSA (Zaczynają się od **)
+        // Dzięki temu nie zresetujemy przypadkowo flag parsowania!
+        if (line.size() >= 2 && line[0] == '*' && line[1] == '*') {
+            continue;
+        }
 
         if (line[0] == '*') {
             node_selection = false;
             element_tri_selection = false;
             element_quad_selection = false;
-            bc_selection = false; // Resetujemy też nową flagę
+            bc_selection = false;
 
             if (line.find("*Node") != std::string::npos) {
                 node_selection = true;
@@ -136,7 +147,6 @@ void load_inp_mesh(geo::Mesh &mesh) {
             {
                 element_quad_selection = true;
             }
-            // Sprawdzamy czy to sekcja Nset z nazwą "BC"
             else if (line.find("*Nset") != std::string::npos && line.find("BC") != std::string::npos) {
                 bc_selection = true;
             }
@@ -152,8 +162,7 @@ void load_inp_mesh(geo::Mesh &mesh) {
             int id;
             float x, y;
             if (iss >> id >> x >> y) {
-                // Zakładam, że trzeci parametr 'false' to flaga bycia na brzegu (np. is_bc)
-                geo_nodes.emplace_back(x, -y, false);
+                geo_nodes.emplace_back(x, y, false);
             }
         }
         else if (element_tri_selection) {
@@ -189,6 +198,11 @@ void load_inp_mesh(geo::Mesh &mesh) {
             while (iss >> node_id) {
                 if (node_id > 0 && node_id <= geo_nodes.size()) {
                     geo_nodes[node_id - 1].bc.is_bc = true;
+                    geo_nodes[node_id - 1].bc.initialised = true;
+
+                    geo_nodes[node_id - 1].bc.flux = 0.0f;
+                    geo_nodes[node_id - 1].bc.alfa = 0.0f;
+                    geo_nodes[node_id - 1].bc.t_ext = 0.0f;
                 }
             }
         }
