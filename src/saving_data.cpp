@@ -3,6 +3,8 @@
 //
 
 #include "saving_data.h"
+
+#include <algorithm>
 #include <fstream>
 #include <vector>
 
@@ -88,4 +90,112 @@ void clean_vtu_files() {
     } catch (const std::filesystem::filesystem_error& e) {
         std::cerr << "Blad podczas usuwania plikow: " << e.what() << std::endl;
     }
+}
+
+void load_inp_mesh(geo::Mesh &mesh) {
+    std::fstream file_inp("Data/MES_siatka.inp");
+
+    if(!file_inp.is_open()) {
+        std::cout << "Cannot find MES_siatka.inp file in Data folder!\n";
+        return;
+    }
+
+    std::vector<geo::Node> geo_nodes;
+    std::vector<geo::Triangle> geo_triangle;
+    std::vector<geo::Quad> geo_quads;
+
+    std::string line;
+    bool node_selection = false;
+    bool element_tri_selection = false;
+    bool element_quad_selection = false;
+    bool bc_selection = false;
+
+    while (std::getline(file_inp, line)) {
+        if (line.empty()) continue;
+
+        if (line[0] == '*') {
+            node_selection = false;
+            element_tri_selection = false;
+            element_quad_selection = false;
+            bc_selection = false; // Resetujemy też nową flagę
+
+            if (line.find("*Nodes") != std::string::npos) {
+                node_selection = true;
+            }
+            else if (line.find("CPS3") != std::string::npos ||
+                     line.find("CPE3") != std::string::npos ||
+                     line.find("CAX3") != std::string::npos ||
+                     line.find("S3")   != std::string::npos)
+            {
+                element_tri_selection = true;
+            }
+            else if (line.find("CPS4") != std::string::npos ||
+                     line.find("CPE4") != std::string::npos ||
+                     line.find("CAX4") != std::string::npos ||
+                     line.find("S4")   != std::string::npos)
+            {
+                element_quad_selection = true;
+            }
+            // Sprawdzamy czy to sekcja Nset z nazwą "BC"
+            else if (line.find("*Nset") != std::string::npos && line.find("BC") != std::string::npos) {
+                bc_selection = true;
+            }
+            continue;
+        }
+
+        // --- Przetwarzanie danych w zależności od aktywnej sekcji ---
+        if (node_selection) {
+            std::replace(line.begin(), line.end(), ',', ' ');
+            std::istringstream iss(line);
+            iss.imbue(std::locale::classic());
+
+            int id;
+            float x, y;
+            if (iss >> id >> x >> y) {
+                // Zakładam, że trzeci parametr 'false' to flaga bycia na brzegu (np. is_bc)
+                geo_nodes.emplace_back(x, y, false);
+            }
+        }
+        else if (element_tri_selection) {
+            std::replace(line.begin(), line.end(), ',', ' ');
+            std::istringstream iss(line);
+            iss.imbue(std::locale::classic());
+
+            int id;
+            int n1, n2, n3;
+            if (iss >> id >> n1 >> n2 >> n3) {
+                geo::Triangle tri_temp(n1 - 1, n2 - 1, n3 - 1);
+                geo_triangle.push_back(tri_temp);
+            }
+        }
+        else if (element_quad_selection) {
+            std::replace(line.begin(), line.end(), ',', ' ');
+            std::istringstream iss(line);
+            iss.imbue(std::locale::classic());
+
+            int id;
+            int n1, n2, n3, n4;
+            if (iss >> id >> n1 >> n2 >> n3 >> n4) {
+                geo::Quad quad_temp(n1 - 1, n2 - 1, n3 - 1, n4 - 1);
+                geo_quads.push_back(quad_temp);
+            }
+        }
+        else if (bc_selection) {
+            std::replace(line.begin(), line.end(), ',', ' ');
+            std::istringstream iss(line);
+            iss.imbue(std::locale::classic());
+
+            int node_id;
+            while (iss >> node_id) {
+                if (node_id > 0 && node_id <= geo_nodes.size()) {
+                    geo_nodes[node_id - 1].bc.is_bc = true;
+                }
+            }
+        }
+    }
+
+    file_inp.close();
+    mesh.nodes = geo_nodes;
+    mesh.triangles = geo_triangle;
+    mesh.quads = geo_quads;
 }

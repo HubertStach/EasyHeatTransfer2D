@@ -10,6 +10,6 @@
 
 void save_fem_data(geo::Mesh &mesh, Fem::GlobalData conf);
 void clean_vtu_files();
-
+void load_inp_mesh(geo::Mesh &mesh);
 
 #endif //EASYFEM_SAVING_DATA_H
