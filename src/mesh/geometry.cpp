@@ -73,6 +73,15 @@ geo::Triangle::Triangle(int n1, int n2, int n3)
     this->node_ids[2] = n3;
 }
 
+geo::Quad::Quad() = default;
+
+geo::Quad::Quad(int n1, int n2, int n3, int n4) {
+    this->node_ids[0] = n1;
+    this->node_ids[1] = n2;
+    this->node_ids[2] = n3;
+    this->node_ids[3] = n4;
+}
+
 geo::Mesh::Mesh() {
 
 }
@@ -219,6 +228,100 @@ void geo::Mesh::draw_tr()
     }
 }
 
+void geo::Mesh::draw_q() {
+    for (const geo::Quad& q : this->quads) {
+
+        const geo::Node& node1 = this->nodes[q.node_ids[0]];
+        const geo::Node& node2 = this->nodes[q.node_ids[1]];
+        const geo::Node& node3 = this->nodes[q.node_ids[2]];
+        const geo::Node& node4 = this->nodes[q.node_ids[3]];
+
+        const Vector2 pos1 = { node1.x, node1.y };
+        const Vector2 pos2 = { node2.x, node2.y };
+        const Vector2 pos3 = { node3.x, node3.y };
+        const Vector2 pos4 = { node4.x, node4.y };
+
+        DrawLineV(pos1, pos2, WHITE);
+        DrawLineV(pos2, pos3, WHITE);
+        DrawLineV(pos3, pos4, WHITE);
+        DrawLineV(pos4, pos1, WHITE);
+    }
+}
+
+void geo::Mesh::draw_q_grad(std::vector<double> &temp, float max, float min) const {
+    auto get_color_for_temp = [max, min](float t_val) -> Color {
+        if (std::fabs(max - min) < 0.0001f) {
+            return GREEN;
+        }
+
+        // Normalizacja do zakresu 0.0 - 1.0
+        float t = (t_val - min) / (max - min);
+        t = std::clamp(t, 0.0f, 1.0f);
+
+        unsigned char r = 0, g = 0, b = 0;
+
+        if (t < 0.5f) {
+            float local_t = t * 2.0f;
+            r = (unsigned char)(255 * local_t);
+            g = (unsigned char)(255 * local_t);
+            b = 255;
+        } else {
+            float local_t = (t - 0.5f) * 2.0f;
+            r = 255;
+            g = (unsigned char)(255 * (1.0f - local_t));
+            b = (unsigned char)(255 * (1.0f - local_t));
+        }
+
+        return Color{r, g, b, 255};
+    };
+
+    rlBegin(RL_TRIANGLES);
+
+    for (const geo::Quad& q : this->quads) {
+        const geo::Node& node1 = this->nodes[q.node_ids[0]];
+        const geo::Node& node2 = this->nodes[q.node_ids[1]];
+        const geo::Node& node3 = this->nodes[q.node_ids[2]];
+        const geo::Node& node4 = this->nodes[q.node_ids[3]];
+
+        float t1 = temp[q.node_ids[0]];
+        float t2 = temp[q.node_ids[1]];
+        float t3 = temp[q.node_ids[2]];
+        float t4 = temp[q.node_ids[3]];
+
+        float cx = (node1.x + node2.x + node3.x + node4.x) / 4.0f;
+        float cy = (node1.y + node2.y + node3.y + node4.y) / 4.0f;
+        float tc = (t1 + t2 + t3 + t4) / 4.0f;
+
+        Color col1 = get_color_for_temp(t1);
+        Color col2 = get_color_for_temp(t2);
+        Color col3 = get_color_for_temp(t3);
+        Color col4 = get_color_for_temp(t4);
+        Color colC = get_color_for_temp(tc);
+
+        //rysujemy trójkąty 2 krotnie aby uniknąć back-cullingu -> trójkąty się nie wyświetlają bo och wektor normalny
+        //jest w drugą stronę od kamery/ekranu
+        auto draw_triangle_both_ways = [&](const geo::Node& nA, Color cA, const geo::Node& nB, Color cB) {
+            // Rysowanie z jedną rotacją
+            rlColor4ub(cA.r, cA.g, cA.b, cA.a); rlVertex2f(nA.x, nA.y);
+            rlColor4ub(cB.r, cB.g, cB.b, cB.a); rlVertex2f(nB.x, nB.y);
+            rlColor4ub(colC.r, colC.g, colC.b, colC.a); rlVertex2f(cx, cy);
+
+            // Rysowanie z odwrotną rotacją (gwarantuje widoczność 2D)
+            rlColor4ub(cA.r, cA.g, cA.b, cA.a); rlVertex2f(nA.x, nA.y);
+            rlColor4ub(colC.r, colC.g, colC.b, colC.a); rlVertex2f(cx, cy);
+            rlColor4ub(cB.r, cB.g, cB.b, cB.a); rlVertex2f(nB.x, nB.y);
+        };
+
+        draw_triangle_both_ways(node1, col1, node2, col2);
+        draw_triangle_both_ways(node2, col2, node3, col3);
+        draw_triangle_both_ways(node3, col3, node4, col4);
+        draw_triangle_both_ways(node4, col4, node1, col1);
+    }
+
+    // Kończymy rysowanie
+    rlEnd();
+}
+
 //zastąpione przed draw_tr_grad
 void geo::Mesh::draw_tr(std::vector<double> &temp, float max, float min) const {
     for (const geo::Triangle& tr : this->triangles) {
@@ -319,6 +422,7 @@ void geo::Mesh::draw_tr_grad(std::vector<double> &temp, float max, float min) co
         // Należy zdefiniować kolor ZANIM zdefiniuje się wierzchołek
 
         // Trójkąt pierwszy
+
         rlColor4ub(col1.r, col1.g, col1.b, col1.a);
         rlVertex2f(node1.x, node1.y);
 
@@ -330,6 +434,8 @@ void geo::Mesh::draw_tr_grad(std::vector<double> &temp, float max, float min) co
 
         // Trójkąt drugi (Odwrotna kolejność wierzchołków, odpowiada to rysowaniu
         // dwustronnemu z oryginalnego kodu - DrawTriangle(pos1, pos3, pos2))
+
+
         rlColor4ub(col1.r, col1.g, col1.b, col1.a);
         rlVertex2f(node1.x, node1.y);
 
@@ -338,6 +444,7 @@ void geo::Mesh::draw_tr_grad(std::vector<double> &temp, float max, float min) co
 
         rlColor4ub(col2.r, col2.g, col2.b, col2.a);
         rlVertex2f(node2.x, node2.y);
+
     }
 
     // Kończymy rysowanie
@@ -366,7 +473,7 @@ void geo::Mesh::load_nodes(const std::string &filepath) {
             continue;
         }
 
-        if (line == "*Elements" || line == "*BC") {
+        if (line == "*Triangles" || line == "*BC" || line == "*Quads") {
             node_selection = false;
         }
 
@@ -398,12 +505,12 @@ void geo::Mesh::load_tr_elements(const std::string &filepath) {
     bool tr_selection = false;
 
     while (std::getline(file, line)) {
-        if (line == "*Elements") {
+        if (line == "*Triangles") {
             tr_selection = true;
             continue;
         }
 
-        if (line == "*Nodes" || line == "*BC") {
+        if (line == "*Nodes" || line == "*BC" || line == "*Quads") {
             tr_selection = false;
         }
 
@@ -419,6 +526,43 @@ void geo::Mesh::load_tr_elements(const std::string &filepath) {
     }
     file.close();
     this->triangles = tr_elements;
+}
+
+void geo::Mesh::load_q_elements(const std::string &filepath) {
+    std::vector<Quad> q_elements;
+    std::fstream file;
+
+    file.open(filepath);
+    if(!file.good()){
+        std::cout << "Couldn't load text file\n";
+        return ;
+    }
+
+    std::string line;
+    bool tr_selection = false;
+
+    while (std::getline(file, line)) {
+        if (line == "*Quads") {
+            tr_selection = true;
+            continue;
+        }
+
+        if (line == "*Nodes" || line == "*BC" || line=="*Triangles") {
+            tr_selection = false;
+        }
+
+        if (tr_selection) {
+            int id;
+            int node_id1, node_id2, node_id3, node_id4;
+            char comma;
+            std::istringstream iss(line);
+            if (iss >> id >> comma >> node_id1 >> comma >> node_id2 >> comma >> node_id3 >> comma >>node_id4) {
+                q_elements.emplace_back(node_id1, node_id2, node_id3, node_id4);
+            }
+        }
+    }
+    file.close();
+    this->quads = q_elements;
 }
 
 void geo::Mesh::load_bcs(const std::string &filepath) {
@@ -439,7 +583,7 @@ void geo::Mesh::load_bcs(const std::string &filepath) {
             continue;
         }
 
-        if (line == "*Nodes" || line == "*Elements") {
+        if (line == "*Nodes" || line == "*Triangles" || line == "*Quads") {
             bc_selection = false;
         }
 
@@ -466,7 +610,7 @@ void geo::Mesh::load_bcs(const std::string &filepath) {
 }
 
 //
-void geo::Mesh::reconstruct_edges_tr() {
+void geo::Mesh::reconstruct_edges() {
     this->edges.clear();
 
     std::map<std::pair<int, int>, int> edge_count;
@@ -475,6 +619,18 @@ void geo::Mesh::reconstruct_edges_tr() {
         for (int i = 0; i < 3; ++i) {
             int n1 = tr.node_ids[i];
             int n2 = tr.node_ids[(i + 1) % 3];
+
+            int min_n = std::min(n1, n2);
+            int max_n = std::max(n1, n2);
+
+            edge_count[{min_n, max_n}]++;
+        }
+    }
+
+    for (const geo::Quad& q : this->quads) {
+        for (int i = 0; i < 4; ++i) {
+            int n1 = q.node_ids[i];
+            int n2 = q.node_ids[(i + 1) % 4];
 
             int min_n = std::min(n1, n2);
             int max_n = std::max(n1, n2);
@@ -512,8 +668,9 @@ void geo::Mesh::reconstruct_edges_tr() {
 void geo::Mesh::load_mesh_from_txt(const std::string& filepath) {
     this->load_nodes(filepath);
     this->load_tr_elements(filepath);
+    this->load_q_elements(filepath);
     this->load_bcs(filepath);
-    this->reconstruct_edges_tr();
+    this->reconstruct_edges();
     this->mesh_created = true;
 }
 
