@@ -29,6 +29,7 @@ void save_fem_data(geo::Mesh &mesh, Fem::GlobalData conf) {
     plik << "SpecificHeat " << conf.specific_heat << "\n";
     plik << "Nodes_number " << mesh.nodes.size() << "\n";
     plik << "Triangle_number " << mesh.triangles.size() << "\n";
+    plik << "Quad_number " << mesh.quads.size() << "\n";
 
     // 2. zapis siatki
     // 2.1 zapis punktów
@@ -37,7 +38,7 @@ void save_fem_data(geo::Mesh &mesh, Fem::GlobalData conf) {
         plik << i << ", " << mesh.nodes[i].x*0.01f << ", " << mesh.nodes[i].y*0.01f << "\n";
     }
 
-    // 2.2 zapis elementów
+    // 2.2 zapis elementów trójkątnych
     plik << "*Triangles\n";
     for (size_t i = 0; i < mesh.triangles.size(); i++) {
         plik << i << ", "
@@ -46,7 +47,17 @@ void save_fem_data(geo::Mesh &mesh, Fem::GlobalData conf) {
              << mesh.triangles[i].node_ids[2] << "\n";
     }
 
-    // 2.3 zapis warunkow brzegowych
+    // 2.3 zapis elementów czworokątnych
+    plik << "*Quads\n";
+    for (size_t i = 0; i < mesh.quads.size(); i++) {
+        plik << i << ", "
+             << mesh.quads[i].node_ids[0] << ", "
+             << mesh.quads[i].node_ids[1] << ", "
+             << mesh.quads[i].node_ids[2] << ", "
+             << mesh.quads[i].node_ids[3] << "\n";
+    }
+
+    // 2.4 zapis warunkow brzegowych
     plik << "*BC\n";
     for (size_t i = 0; i < mesh.nodes.size(); i++) {
         if (mesh.nodes[i].bc.is_bc) {

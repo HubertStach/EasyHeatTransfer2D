@@ -48,6 +48,7 @@ MainWindow::MainWindow()
     bool auto_play = false;
     bool display_nodes = true;
     bool display_triangles = true;
+    bool display_quads = true;
 
     std::string solver_type_str = "implicit_euler";
     int current_solver = 1; // 0 = Explicit, 1 = Implicit, 2 = Crank-Nicolson
@@ -253,11 +254,13 @@ MainWindow::MainWindow()
 
                 ImGui::Checkbox("Display nodes", &display_nodes);
                 ImGui::Checkbox("Display triangles", &display_triangles);
+                ImGui::Checkbox("Display quads", &display_quads);
             }
 
             if (!loading_visual) {
                 display_nodes = true;
                 display_triangles = true;
+                display_quads = true;
             }
 
             ImGui::EndChild();
@@ -350,6 +353,10 @@ MainWindow::MainWindow()
             }
             if (display_triangles) {
                 mesh.draw_tr();
+            }
+
+            if (display_quads) {
+                mesh.draw_q();
             }
 
             if (display_nodes) {

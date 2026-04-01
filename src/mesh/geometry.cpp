@@ -73,6 +73,15 @@ geo::Triangle::Triangle(int n1, int n2, int n3)
     this->node_ids[2] = n3;
 }
 
+geo::Quad::Quad() = default;
+
+geo::Quad::Quad(int n1, int n2, int n3, int n4) {
+    this->node_ids[0] = n1;
+    this->node_ids[1] = n2;
+    this->node_ids[2] = n3;
+    this->node_ids[3] = n4;
+}
+
 geo::Mesh::Mesh() {
 
 }
@@ -216,6 +225,26 @@ void geo::Mesh::draw_tr()
         DrawLineV(pos1, pos2, WHITE);
         DrawLineV(pos2, pos3, WHITE);
         DrawLineV(pos3, pos1, WHITE);
+    }
+}
+
+void geo::Mesh::draw_q() {
+    for (const geo::Quad& q : this->quads) {
+
+        const geo::Node& node1 = this->nodes[q.node_ids[0]];
+        const geo::Node& node2 = this->nodes[q.node_ids[1]];
+        const geo::Node& node3 = this->nodes[q.node_ids[2]];
+        const geo::Node& node4 = this->nodes[q.node_ids[3]];
+
+        const Vector2 pos1 = { node1.x, node1.y };
+        const Vector2 pos2 = { node2.x, node2.y };
+        const Vector2 pos3 = { node3.x, node3.y };
+        const Vector2 pos4 = { node4.x, node4.y };
+
+        DrawLineV(pos1, pos2, WHITE);
+        DrawLineV(pos2, pos3, WHITE);
+        DrawLineV(pos3, pos4, WHITE);
+        DrawLineV(pos4, pos1, WHITE);
     }
 }
 
@@ -366,7 +395,7 @@ void geo::Mesh::load_nodes(const std::string &filepath) {
             continue;
         }
 
-        if (line == "*Elements" || line == "*BC") {
+        if (line == "*Triangles" || line == "*BC" || line == "*Quads") {
             node_selection = false;
         }
 
@@ -382,6 +411,7 @@ void geo::Mesh::load_nodes(const std::string &filepath) {
     }
     file.close();
     this->nodes = loaded_nodes;
+    std::cout<<this->nodes.size()<<"\n";
 }
 
 void geo::Mesh::load_tr_elements(const std::string &filepath) {
@@ -398,12 +428,12 @@ void geo::Mesh::load_tr_elements(const std::string &filepath) {
     bool tr_selection = false;
 
     while (std::getline(file, line)) {
-        if (line == "*Elements") {
+        if (line == "*Triangles") {
             tr_selection = true;
             continue;
         }
 
-        if (line == "*Nodes" || line == "*BC") {
+        if (line == "*Nodes" || line == "*BC" || line == "*Quads") {
             tr_selection = false;
         }
 
@@ -419,6 +449,43 @@ void geo::Mesh::load_tr_elements(const std::string &filepath) {
     }
     file.close();
     this->triangles = tr_elements;
+}
+
+void geo::Mesh::load_q_elements(const std::string &filepath) {
+    std::vector<Quad> q_elements;
+    std::fstream file;
+
+    file.open(filepath);
+    if(!file.good()){
+        std::cout << "Couldn't load text file\n";
+        return ;
+    }
+
+    std::string line;
+    bool tr_selection = false;
+
+    while (std::getline(file, line)) {
+        if (line == "*Quads") {
+            tr_selection = true;
+            continue;
+        }
+
+        if (line == "*Nodes" || line == "*BC" || line=="*Triangles") {
+            tr_selection = false;
+        }
+
+        if (tr_selection) {
+            int id;
+            int node_id1, node_id2, node_id3, node_id4;
+            char comma;
+            std::istringstream iss(line);
+            if (iss >> id >> comma >> node_id1 >> comma >> node_id2 >> comma >> node_id3 >> comma >>node_id4) {
+                q_elements.emplace_back(node_id1, node_id2, node_id3, node_id4);
+            }
+        }
+    }
+    file.close();
+    this->quads = q_elements;
 }
 
 void geo::Mesh::load_bcs(const std::string &filepath) {
@@ -439,7 +506,7 @@ void geo::Mesh::load_bcs(const std::string &filepath) {
             continue;
         }
 
-        if (line == "*Nodes" || line == "*Elements") {
+        if (line == "*Nodes" || line == "*Triangles" || line == "*Quads") {
             bc_selection = false;
         }
 
@@ -466,7 +533,7 @@ void geo::Mesh::load_bcs(const std::string &filepath) {
 }
 
 //
-void geo::Mesh::reconstruct_edges_tr() {
+void geo::Mesh::reconstruct_edges() {
     this->edges.clear();
 
     std::map<std::pair<int, int>, int> edge_count;
@@ -475,6 +542,18 @@ void geo::Mesh::reconstruct_edges_tr() {
         for (int i = 0; i < 3; ++i) {
             int n1 = tr.node_ids[i];
             int n2 = tr.node_ids[(i + 1) % 3];
+
+            int min_n = std::min(n1, n2);
+            int max_n = std::max(n1, n2);
+
+            edge_count[{min_n, max_n}]++;
+        }
+    }
+
+    for (const geo::Quad& q : this->quads) {
+        for (int i = 0; i < 4; ++i) {
+            int n1 = q.node_ids[i];
+            int n2 = q.node_ids[(i + 1) % 4];
 
             int min_n = std::min(n1, n2);
             int max_n = std::max(n1, n2);
@@ -512,8 +591,9 @@ void geo::Mesh::reconstruct_edges_tr() {
 void geo::Mesh::load_mesh_from_txt(const std::string& filepath) {
     this->load_nodes(filepath);
     this->load_tr_elements(filepath);
+    this->load_q_elements(filepath);
     this->load_bcs(filepath);
-    this->reconstruct_edges_tr();
+    this->reconstruct_edges();
     this->mesh_created = true;
 }
 

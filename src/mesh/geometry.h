@@ -48,12 +48,20 @@ namespace geo {
         Triangle(int n1, int n2, int n3);
     };
 
+    struct Quad {
+        int node_ids[4]{};
+
+        Quad();
+        Quad(int n1, int n2, int n3, int n4);
+    };
+
     struct Mesh{
         std::vector<Node> nodes;
         std::vector<Node> initial_bc_nodes;
         std::vector<Edge> edges;
         std::vector<Edge> initial_edges;
         std::vector<Triangle> triangles;
+        std::vector<Quad> quads;
         std::vector<Polygon> polygons;
         AdvancingFront* afm=nullptr;
 
@@ -86,14 +94,16 @@ namespace geo {
         void draw_nodes(float size) const;
         void draw_edges();
         void draw_tr();
+        void draw_q();
         void draw_tr(std::vector<double> &temp, float max, float min) const;
         void draw_tr_grad(std::vector<double> &temp, float max, float min) const;
 
         //-------Ładowanie siatki---------
         void load_nodes(const std::string& filepath);
         void load_tr_elements(const std::string& filepath);
+        void load_q_elements(const std::string& filepath);
         void load_bcs(const std::string& filepath);
-        void reconstruct_edges_tr();
+        void reconstruct_edges();
         void load_mesh_from_txt(const std::string& filepath = "Data/fem_data.txt");
     };
 
