@@ -10,6 +10,8 @@ Mesh is created by using advancing front method [1]
 
     Add Dirichlet B.C.
 
+    Add temperature legend
+
     Create proper documentation
 
 
