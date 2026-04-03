@@ -13,11 +13,9 @@
 #include <iostream>
 
 void save_fem_data(geo::Mesh &mesh, Fem::GlobalData conf) {
-    // 1. Use std::ofstream for outputting files
-    // 2. No need for std::fstream::in; ofstream defaults to writing mode
     std::ofstream plik("Data/fem_data.txt");
 
-    if (!plik.is_open()) { // Better way to check if file is ready
+    if (!plik.is_open()) {
         std::cerr << "Could not create file!" << std::endl;
         return;
     }

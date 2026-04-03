@@ -7,6 +7,7 @@
 #include "../include/raymath.h"
 
 #include <vector>
+#include <algorithm> // do std::min/max
 
 #include "app_ui/axis.h"
 #include "app_ui/grid.h"
@@ -39,8 +40,7 @@ MainWindow::MainWindow()
     float bc_text = 0.0f;
 
     int bc_edge_clicked = -1;
-    //lista przechowuje krawędzie
-    std::vector<int> selected_edges;
+    std::vector<int> selected_edges; // Lista przechowująca zaznaczone krawędzie
     bool bc_options_saved = false;
     bool problem_solved = false;
 
@@ -124,7 +124,6 @@ MainWindow::MainWindow()
             mesh.nodes.clear();
             mesh.triangles.clear();
             mesh.edges.clear();
-            mesh.quads.clear();
             bc_edge_clicked = -1;
             selected_edges.clear();
             mesh_created = false;
@@ -353,6 +352,7 @@ MainWindow::MainWindow()
             //rysowanie punktów i wielokątów
             mesh.draw_edges();
 
+            // Podświetlanie aktualnie zaznaczonych krawędzi (rysowanie nad standardowymi niebieskimi/czerwonymi)
             if (bc_edge_clicked != -1 && !selected_edges.empty()) {
                 for (int edge_idx : selected_edges) {
                     if (edge_idx >= 0 && edge_idx < (int)mesh.edges.size()) {
@@ -360,7 +360,8 @@ MainWindow::MainWindow()
                         int n2 = mesh.edges[edge_idx].node_ids[1];
                         Vector2 p1 = { mesh.nodes[n1].x, mesh.nodes[n1].y };
                         Vector2 p2 = { mesh.nodes[n2].x, mesh.nodes[n2].y };
-                        DrawLineEx(p1, p2, 3.0f * (1.0f / camera.zoom), MAGENTA);
+                        // Rysuje lekko grubszą linię stałej szerokości na ekranie, by krawędź się wyróżniała
+                        DrawLineEx(p1, p2, 2.0f * (1.0f / camera.zoom), MAGENTA);
                     }
                 }
             }
@@ -397,6 +398,38 @@ MainWindow::MainWindow()
 
         EndMode2D();
 
+        // ------------------ Legenda temperatury  ------------------
+        if (loading_visual && vis.solved) {
+            float legendWidth = 25.0f;
+            float legendHeight = std::max(100.0f, std::min(400.0f, panelSize.y - 80.0f));
+            float legendX = panelMin.x + panelSize.x - legendWidth - 80.0f;
+            float legendY = panelMin.y + (panelSize.y - legendHeight) / 2.0f;
+
+            //gradient z czerwonego na biały i z białego na niebieski
+            DrawRectangleGradientV((int)legendX, (int)legendY, (int)legendWidth, (int)(legendHeight / 2.0f), RED, WHITE);
+            DrawRectangleGradientV((int)legendX, (int)(legendY + legendHeight / 2.0f), (int)legendWidth, (int)(legendHeight - legendHeight / 2.0f), WHITE, BLUE);
+
+            // Ramka wokół gradientu
+            DrawRectangleLines((int)legendX, (int)legendY, (int)legendWidth, (int)legendHeight, BLACK);
+
+            // Rysowanie etykiet i podziałek w 9 krokach (0..8)
+            int num_steps = 12;
+            for (int i = 0; i < num_steps; i++) {
+                // Od góry (1.0 = Czerwony/Max) do dołu (0.0 = Niebieski/Min)
+                float t = 1.0f - ((float)i / (num_steps - 1));
+                float temp_val = vis.min_temp + t * (vis.max_temp - vis.min_temp);
+
+                int lineY = (int)(legendY + i * (legendHeight / (num_steps - 1)));
+
+                // Podziałka przy prostokącie
+                DrawLine((int)(legendX + legendWidth), lineY, (int)(legendX + legendWidth + 5), lineY, BLACK);
+
+                // Tekst z wartością temperatury
+                int textY = lineY - 7; // Przesunięcie aby tekst był na środku kreski
+                DrawTextEx(GetFontDefault(), TextFormat("%.2f", temp_val), { legendX + legendWidth + 10.0f, (float)textY }, 15, 1, WHITE);
+            }
+        }
+
 
         Vector2 worldPos = GetScreenToWorld2D(GetMousePosition(), camera);
         // Snap to grid
@@ -415,6 +448,7 @@ MainWindow::MainWindow()
                 bc_edge_clicked = hit_node_id;
                 bc_options_saved = false;
 
+                // Jeżeli mesh_created i trzymamy shift pobieramy połączone krawędzie
                 if (mesh_created && (IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT))) {
                     selected_edges = mesh.get_continuous_edges(hit_node_id);
                 } else {
@@ -422,6 +456,7 @@ MainWindow::MainWindow()
                     selected_edges.push_back(hit_node_id);
                 }
 
+                // Wczytanie konfiguracji z klikniętej (głównej) krawędzi
                 if (mesh.edges[hit_node_id].bc_edge.initialised) {
                     bc_flux = mesh.edges[hit_node_id].bc_edge.flux;
                     bc_alfa = mesh.edges[hit_node_id].bc_edge.alfa;
@@ -431,9 +466,6 @@ MainWindow::MainWindow()
                     bc_alfa = 0.0f;
                     bc_text = 0.0f;
                 }
-            }
-            else {
-                bc_edge_clicked = -1;
             }
         }
         //std::cout<<worldPos.x<<", "<<worldPos.y<<"\n";
