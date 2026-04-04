@@ -7,33 +7,33 @@
 
 namespace Fem{
 
-    float N1_tr(float xi, float eta);
-    float N2_tr(float xi, float eta);
-    float N3_tr(float xi, float eta);
+    double N1_tr(double xi, double eta);
+    double N2_tr(double xi, double eta);
+    double N3_tr(double xi, double eta);
 
-    float N1_q(float xi, float eta);
-    float N2_q(float xi, float eta);
-    float N3_q(float xi, float eta);
-    float N4_q(float xi, float eta);
+    double N1_q(double xi, double eta);
+    double N2_q(double xi, double eta);
+    double N3_q(double xi, double eta);
+    double N4_q(double xi, double eta);
 
-    float dN1dxi_q(float eta);
-    float dN2dxi_q(float eta);
-    float dN3dxi_q(float eta);
-    float dN4dxi_q(float eta);
+    double dN1dxi_q(double eta);
+    double dN2dxi_q(double eta);
+    double dN3dxi_q(double eta);
+    double dN4dxi_q(double eta);
 
-    float dN1deta_q(float xi);
-    float dN2deta_q(float xi);
-    float dN3deta_q(float xi);
-    float dN4deta_q(float xi);
+    double dN1deta_q(double xi);
+    double dN2deta_q(double xi);
+    double dN3deta_q(double xi);
+    double dN4deta_q(double xi);
 
     struct BC_node{
         int id;
 
         bool exist=false;
 
-        float flux;
-        float alfa;
-        float t_ext;
+        double flux;
+        double alfa;
+        double t_ext;
 
         BC_node(){
             this->id=0;
@@ -42,7 +42,7 @@ namespace Fem{
             this->t_ext=0.0;
         }
 
-        BC_node(int id, float flux, float alfa, float t_ext){
+        BC_node(int id, double flux, double alfa, double t_ext){
             this->exist=true;
             this->id=id;
             this->flux=flux;
@@ -52,8 +52,8 @@ namespace Fem{
     };
 
     struct Node{
-        float x;
-        float y;
+        double x;
+        double y;
 
         BC_node bc;
 
@@ -62,7 +62,7 @@ namespace Fem{
         this-> y = 0; 
         }
 
-        Node(float x, float y){
+        Node(double x, double y){
             this->x = x;
             this->y = y;
         }
@@ -71,7 +71,7 @@ namespace Fem{
     struct Triangle{
         int id{};
         int node_ids[3]{};
-        float area{};
+        double area{};
 
         Matrix H_local;
         Matrix H_bc;
@@ -84,12 +84,12 @@ namespace Fem{
             this->node_ids[2] = n3;
         }
 
-        float dN1dx_tr(std::vector<Node> &nodes);
-        float dN2dx_tr(std::vector<Node> &nodes);
-        float dN3dx_tr(std::vector<Node> &nodes);
-        float dN1dy_tr(std::vector<Node> &nodes);
-        float dN2dy_tr(std::vector<Node> &nodes);
-        float dN3dy_tr(std::vector<Node> &nodes);
+        double dN1dx_tr(std::vector<Node> &nodes);
+        double dN2dx_tr(std::vector<Node> &nodes);
+        double dN3dx_tr(std::vector<Node> &nodes);
+        double dN1dy_tr(std::vector<Node> &nodes);
+        double dN2dy_tr(std::vector<Node> &nodes);
+        double dN3dy_tr(std::vector<Node> &nodes);
     };
 
     struct Quad{
@@ -109,8 +109,8 @@ namespace Fem{
             this->node_ids[3] = n4;
         }
 
-        Matrix jacobian_mat(Quad &element, std::vector<Node> &nodes, float pc_xi, float pc_eta);
-        float det_jacobian(Matrix jacobian_mat);
+        Matrix jacobian_mat(Quad &element, std::vector<Node> &nodes, double pc_xi, double pc_eta);
+        double det_jacobian(Matrix jacobian_mat);
         Matrix inv_jacobian_mat(Matrix jacobian_mat);
     };
 
@@ -120,12 +120,12 @@ namespace Fem{
     std::vector<Node> load_bc(const std::string& file_name, std::vector<Node>& nodes);
     
     struct GlobalData{
-        float total_time;
-        float time_step;
-        float conductivity;
-        float init_temperature;
-        float density;
-        float specific_heat;
+        double total_time;
+        double time_step;
+        double conductivity;
+        double init_temperature;
+        double density;
+        double specific_heat;
         int node_number;
         int trian_number;
         int quad_number;
@@ -147,19 +147,19 @@ namespace Fem{
     void print_config(Fem::GlobalData configuration);
 
     //---------Trójkąty-----------
-    Matrix calc_local_H_tr(Triangle &local_el, std::vector<Node> &nodes, float conductivity);
+    Matrix calc_local_H_tr(Triangle &local_el, std::vector<Node> &nodes, double conductivity);
     Matrix calc_local_Hbc_tr(Triangle &local_el, std::vector<Node> &nodes);
     Matrix calc_p_vec_tr(const Triangle &local_el, const std::vector<Node> &nodes);
-    Matrix calc_c_tr(const Triangle &local_el, const std::vector<Node> &nodes, float density, float specific_heat, int c_lump);
+    Matrix calc_c_tr(const Triangle &local_el, const std::vector<Node> &nodes, double density, double specific_heat, int c_lump);
     void aggregate_tr(Matrix &Global, const Triangle& element, Matrix &Local);
     void aggregate_p_vec_tr(Matrix &P_vec, const Triangle& element, Matrix &Local);
     //----------------------------
 
     //---------Czworokąty-----------
-    Matrix calc_local_H_q(Quad &element, std::vector<Node> &nodes, float conductivity);
+    Matrix calc_local_H_q(Quad &element, std::vector<Node> &nodes, double conductivity);
     Matrix calc_local_Hbc_q(Quad &element, std::vector<Node> &nodes);
     Matrix calc_P_q(Quad &element, std::vector<Node> &nodes);
-    Matrix calc_local_C_q(Quad &element, std::vector<Node> &nodes, float rho, float c);
+    Matrix calc_local_C_q(Quad &element, std::vector<Node> &nodes, double rho, double c);
     void aggregate_q(Matrix &Global, Quad element, Matrix &Local);
     void aggregate_p_vec_q(Matrix &P_vec, Quad element, Matrix &Local);
     //----------------------------

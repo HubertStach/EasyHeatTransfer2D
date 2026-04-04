@@ -13,26 +13,26 @@
 
 namespace Fem {
     // --------------Triangles----------------
-    constexpr float bc_pc_xi_tr[6] = {-0.57735f, 0.57735f, 0.57735f, -0.57735f, -1.0f, -1.0f};
-    constexpr float bc_pc_eta_tr[6] = {-1.0f, -1.0f, -0.57735f, 0.57735f, 0.57735, -0.57735};
-    constexpr float bc_pc_w_tr[6] = {1, 1, 1, 1, 1, 1};
+    constexpr double bc_pc_xi_tr[6] = {-0.57735f, 0.57735f, 0.57735f, -0.57735f, -1.0f, -1.0f};
+    constexpr double bc_pc_eta_tr[6] = {-1.0f, -1.0f, -0.57735f, 0.57735f, 0.57735, -0.57735};
+    constexpr double bc_pc_w_tr[6] = {1, 1, 1, 1, 1, 1};
 
-    constexpr float pc_xi_tr[3] = {-2.0f/3.0f, -2.0f/3.0f, 1.0f/3.0f};
-    constexpr float pc_eta_tr[3] = {-2.0f/3.0f, 1.0f/3.0f, -2.0f/3.0f};
-    constexpr float pc_w_tr[3] = {2.0f/3.0f, 2.0f/3.0f, 2.0f/3.0f};
+    constexpr double pc_xi_tr[3] = {-2.0f/3.0f, -2.0f/3.0f, 1.0f/3.0f};
+    constexpr double pc_eta_tr[3] = {-2.0f/3.0f, 1.0f/3.0f, -2.0f/3.0f};
+    constexpr double pc_w_tr[3] = {2.0f/3.0f, 2.0f/3.0f, 2.0f/3.0f};
 
-    float N1_tr(float xi, float eta) {
+    double N1_tr(double xi, double eta) {
         return -(xi+eta)*0.5f;
     }
-    float N2_tr(float xi, float eta) {
+    double N2_tr(double xi, double eta) {
         return 0.5f*(1+xi);
     }
-    float N3_tr(float xi, float eta) {
+    double N3_tr(double xi, double eta) {
         return 0.5f*(1+eta);
     }
 
-    float Triangle::dN1dx_tr(std::vector<Node> &nodes) {
-        float x1, x2, x3, y1, y2, y3;
+    double Triangle::dN1dx_tr(std::vector<Node> &nodes) {
+        double x1, x2, x3, y1, y2, y3;
 
         x1 = nodes[this->node_ids[0]].x;
         y1 = nodes[this->node_ids[0]].y;
@@ -41,13 +41,13 @@ namespace Fem {
         x3 = nodes[this->node_ids[2]].x;
         y3 = nodes[this->node_ids[2]].y;
 
-        const float half_area = ((x2-x1)*(y3-y1))-((x3-x1)*(y2-y1));
+        const double half_area = ((x2-x1)*(y3-y1))-((x3-x1)*(y2-y1));
 
         return ((y2-y3)/half_area);
     }
 
-    float Triangle::dN2dx_tr(std::vector<Node> &nodes) {
-        float x1, x2, x3, y1, y2, y3;
+    double Triangle::dN2dx_tr(std::vector<Node> &nodes) {
+        double x1, x2, x3, y1, y2, y3;
 
         x1 = nodes[this->node_ids[0]].x;
         y1 = nodes[this->node_ids[0]].y;
@@ -56,13 +56,13 @@ namespace Fem {
         x3 = nodes[this->node_ids[2]].x;
         y3 = nodes[this->node_ids[2]].y;
 
-        const float half_area = ((x2-x1)*(y3-y1))-((x3-x1)*(y2-y1));
+        const double half_area = ((x2-x1)*(y3-y1))-((x3-x1)*(y2-y1));
 
         return ((y3-y1)/half_area);
     }
 
-    float Triangle::dN3dx_tr(std::vector<Node> &nodes) {
-        float x1, x2, x3, y1, y2, y3;
+    double Triangle::dN3dx_tr(std::vector<Node> &nodes) {
+        double x1, x2, x3, y1, y2, y3;
 
         x1 = nodes[this->node_ids[0]].x;
         y1 = nodes[this->node_ids[0]].y;
@@ -75,8 +75,8 @@ namespace Fem {
         return ((y1-y2)/(((x2-x1)*(y3-y1))-((x3-x1)*(y2-y1))));
     }
 
-    float Triangle::dN1dy_tr(std::vector<Node> &nodes) {
-        float x1, x2, x3, y1, y2, y3;
+    double Triangle::dN1dy_tr(std::vector<Node> &nodes) {
+        double x1, x2, x3, y1, y2, y3;
 
         x1 = nodes[this->node_ids[0]].x;
         y1 = nodes[this->node_ids[0]].y;
@@ -89,8 +89,8 @@ namespace Fem {
         return ((x3-x2)/(((x2-x1)*(y3-y1))-((x3-x1)*(y2-y1))));
     }
 
-    float Triangle::dN2dy_tr(std::vector<Node> &nodes) {
-        float x1, x2, x3, y1, y2, y3;
+    double Triangle::dN2dy_tr(std::vector<Node> &nodes) {
+        double x1, x2, x3, y1, y2, y3;
 
         x1 = nodes[this->node_ids[0]].x;
         y1 = nodes[this->node_ids[0]].y;
@@ -103,8 +103,8 @@ namespace Fem {
         return ((x1-x3)/(((x2-x1)*(y3-y1))-((x3-x1)*(y2-y1))));
     }
 
-    float Triangle::dN3dy_tr(std::vector<Node> &nodes) {
-        float x1, x2, x3, y1, y2, y3;
+    double Triangle::dN3dy_tr(std::vector<Node> &nodes) {
+        double x1, x2, x3, y1, y2, y3;
 
         x1 = nodes[this->node_ids[0]].x;
         y1 = nodes[this->node_ids[0]].y;
@@ -127,22 +127,22 @@ namespace Fem {
     std::vector<double> bc_eta_q = {-1,-1, -1.0/std::sqrt(3), 1.0/std::sqrt(3), 1, 1, 1.0/std::sqrt(3), -1.0/std::sqrt(3)};
     std::vector<double> bc_weights_q = {1,1,1,1,1,1,1,1};
 
-    float dN1dxi_q(float eta) { return -0.25 * (1 - eta); }
-    float dN2dxi_q(float eta) { return 0.25 * (1 - eta); }
-    float dN3dxi_q(float eta) { return 0.25 * (1 + eta); }
-    float dN4dxi_q(float eta) { return -0.25 * (1 + eta); }
+    double dN1dxi_q(double eta) { return -0.25 * (1 - eta); }
+    double dN2dxi_q(double eta) { return 0.25 * (1 - eta); }
+    double dN3dxi_q(double eta) { return 0.25 * (1 + eta); }
+    double dN4dxi_q(double eta) { return -0.25 * (1 + eta); }
 
-    float dN1deta_q(float xi) { return -0.25 * (1 - xi); }
-    float dN2deta_q(float xi) { return -0.25 * (1 + xi); }
-    float dN3deta_q(float xi) { return 0.25 * (1 + xi); }
-    float dN4deta_q(float xi) { return 0.25 * (1 - xi); }
+    double dN1deta_q(double xi) { return -0.25 * (1 - xi); }
+    double dN2deta_q(double xi) { return -0.25 * (1 + xi); }
+    double dN3deta_q(double xi) { return 0.25 * (1 + xi); }
+    double dN4deta_q(double xi) { return 0.25 * (1 - xi); }
 
-    float N1_q(float xi, float eta) { return 0.25 * ((1 - xi) * (1 - eta)); }
-    float N2_q(float xi, float eta) { return 0.25 * ((1 + xi) * (1 - eta)); }
-    float N3_q(float xi, float eta) { return 0.25 * ((1 + xi) * (1 + eta)); }
-    float N4_q(float xi, float eta) { return 0.25 * ((1 - xi) * (1 + eta)); }
+    double N1_q(double xi, double eta) { return 0.25 * ((1 - xi) * (1 - eta)); }
+    double N2_q(double xi, double eta) { return 0.25 * ((1 + xi) * (1 - eta)); }
+    double N3_q(double xi, double eta) { return 0.25 * ((1 + xi) * (1 + eta)); }
+    double N4_q(double xi, double eta) { return 0.25 * ((1 - xi) * (1 + eta)); }
 
-    Matrix Quad::jacobian_mat(Quad &element, std::vector<Node> &nodes, float pc_xi, float pc_eta)
+    Matrix Quad::jacobian_mat(Quad &element, std::vector<Node> &nodes, double pc_xi, double pc_eta)
     {
         Matrix jacobian(2,2);
 
@@ -156,7 +156,7 @@ namespace Fem {
         return jacobian;
     }
 
-    float Quad::det_jacobian(Fem::Matrix jacobian_mat)
+    double Quad::det_jacobian(Fem::Matrix jacobian_mat)
     {
         return jacobian_mat[0][0]*jacobian_mat[1][1] - jacobian_mat[1][0]*jacobian_mat[0][1];
     }
@@ -164,7 +164,7 @@ namespace Fem {
     Matrix Quad::inv_jacobian_mat(Fem::Matrix jacobian_mat)
     {
         Fem::Matrix inv_jacobian(2,2);
-        float det_J = this->det_jacobian(jacobian_mat);
+        double det_J = this->det_jacobian(jacobian_mat);
         inv_jacobian[0][0] = jacobian_mat[1][1]/det_J;
         inv_jacobian[0][1] = -jacobian_mat[0][1]/det_J;
         inv_jacobian[1][0] = -jacobian_mat[1][0]/det_J;
@@ -199,7 +199,7 @@ namespace Fem {
 
             if (node_selection) {
                 int id;
-                float x, y;
+                double x, y;
                 char comma;
                 std::istringstream iss(line);
                 if (iss >> id >> comma >> x >> comma >> y) {
@@ -307,7 +307,7 @@ namespace Fem {
         while (std::getline(file, line)) {
             std::istringstream iss(line);
             std::string key;
-            float value;
+            double value;
 
             if (iss >> key >> value) {
                 if (key == "SimulationTime") data.total_time = value;
@@ -351,7 +351,7 @@ namespace Fem {
 
             if (bc_selection) {
                 int node_id;
-                float flux, alfa, t_ext;
+                double flux, alfa, t_ext;
                 char comma;
                 std::istringstream iss(line);
                 if (iss >> node_id >> comma >> flux >> comma >> alfa >> comma >> t_ext) {
@@ -385,11 +385,11 @@ namespace Fem {
     }
 
 
-    float dist(Node a, Node b){
+    double dist(Node a, Node b){
         return sqrt(pow( a.x - b.x,2)+pow(a.y - b.y,2));
     }
 
-    Matrix calc_local_H_tr(Triangle &local_el, std::vector<Node> &nodes, const float conductivity)
+    Matrix calc_local_H_tr(Triangle &local_el, std::vector<Node> &nodes, const double conductivity)
     {
         Matrix dNdx(3,1), dNdy(3,1);
 
@@ -400,15 +400,15 @@ namespace Fem {
         dNdy[1][0] = local_el.dN2dy_tr(nodes);
         dNdy[2][0] = local_el.dN3dy_tr(nodes);
 
-        float x1 = nodes[local_el.node_ids[0]].x;
-        float y1 = nodes[local_el.node_ids[0]].y;
-        float x2 = nodes[local_el.node_ids[1]].x;
-        float y2 = nodes[local_el.node_ids[1]].y;
-        float x3 = nodes[local_el.node_ids[2]].x;
-        float y3 = nodes[local_el.node_ids[2]].y;
+        double x1 = nodes[local_el.node_ids[0]].x;
+        double y1 = nodes[local_el.node_ids[0]].y;
+        double x2 = nodes[local_el.node_ids[1]].x;
+        double y2 = nodes[local_el.node_ids[1]].y;
+        double x3 = nodes[local_el.node_ids[2]].x;
+        double y3 = nodes[local_el.node_ids[2]].y;
 
-        float D = (x2-x1)*(y3-y1) - (x3-x1)*(y2-y1);
-        float Area = std::abs(D) / 2.0f;
+        double D = (x2-x1)*(y3-y1) - (x3-x1)*(y2-y1);
+        double Area = std::abs(D) / 2.0f;
 
         Matrix H_local = (dNdx*dNdx.transpose()) + (dNdy*dNdy.transpose());
 
@@ -431,8 +431,8 @@ namespace Fem {
 
             if (! (nodes[id1].bc.exist && nodes[id2].bc.exist)) continue;
 
-            const float alfa = nodes[id1].bc.alfa;
-            const float detJ = 0.5f*dist(nodes[id1], nodes[id2]);
+            const double alfa = nodes[id1].bc.alfa;
+            const double detJ = 0.5f*dist(nodes[id1], nodes[id2]);
 
             for (int pc=0; pc<2; ++pc) {
                 const int pc_aktualny = i*2+pc;
@@ -465,14 +465,14 @@ namespace Fem {
 
             if (!(nodes[id1].bc.exist && nodes[id2].bc.exist)) continue;
 
-            const float detJ = 0.5f*dist(nodes[id1], nodes[id2]);
+            const double detJ = 0.5f*dist(nodes[id1], nodes[id2]);
 
             //W.B. Neumanna
-            const float flux = nodes[id1].bc.flux;
+            const double flux = nodes[id1].bc.flux;
 
             //W.B. Robina
-            const float alfa = nodes[id1].bc.alfa;
-            const float t_ext = nodes[id2].bc.t_ext;
+            const double alfa = nodes[id1].bc.alfa;
+            const double t_ext = nodes[id2].bc.t_ext;
 
             Matrix pvec_edge(3,1);
 
@@ -503,18 +503,18 @@ namespace Fem {
         return p_vec;
     }
 
-    Matrix calc_c_tr(const Triangle &local_el, const std::vector<Node> &nodes, const float density, const float specific_heat, const int c_lump=0)
+    Matrix calc_c_tr(const Triangle &local_el, const std::vector<Node> &nodes, const double density, const double specific_heat, const int c_lump=0)
     {
         Matrix c_matrix(3, 3);
 
-        const float x1 = nodes[local_el.node_ids[0]].x;
-        const float y1 = nodes[local_el.node_ids[0]].y;
-        const float x2 = nodes[local_el.node_ids[1]].x;
-        const float y2 = nodes[local_el.node_ids[1]].y;
-        const float x3 = nodes[local_el.node_ids[2]].x;
-        const float y3 = nodes[local_el.node_ids[2]].y;
+        const double x1 = nodes[local_el.node_ids[0]].x;
+        const double y1 = nodes[local_el.node_ids[0]].y;
+        const double x2 = nodes[local_el.node_ids[1]].x;
+        const double y2 = nodes[local_el.node_ids[1]].y;
+        const double x3 = nodes[local_el.node_ids[2]].x;
+        const double y3 = nodes[local_el.node_ids[2]].y;
 
-        float detJ = 0.25f *((x2-x1)*(y3-y1) - (y2-y1)*(x3-x1));
+        double detJ = 0.25f *((x2-x1)*(y3-y1) - (y2-y1)*(x3-x1));
         detJ = std::abs(detJ);
 
         for (int pc =0; pc<3; ++pc) {
@@ -567,14 +567,14 @@ namespace Fem {
         }
     }
 
-    Matrix calc_local_H_q(Fem::Quad &element, std::vector<Fem::Node> &nodes, float conductivity)
+    Matrix calc_local_H_q(Fem::Quad &element, std::vector<Fem::Node> &nodes, double conductivity)
     {
         Fem::Matrix H(4,4);
 
         for(int i=0; i<4; i++){
             Fem::Matrix H_local(4,4);
             Fem::Matrix jacob = element.jacobian_mat(element, nodes, Fem::pc_xi_q[i], Fem::pc_eta_q[i]);
-            float det_J = element.det_jacobian(jacob);
+            double det_J = element.det_jacobian(jacob);
 
             Fem::Matrix inv_jacob = element.inv_jacobian_mat(jacob);
 
@@ -623,9 +623,9 @@ namespace Fem {
                 continue;
             }
 
-            float alfa = nodes[id1].bc.alfa; //alfa z W.B. Robina
+            double alfa = nodes[id1].bc.alfa; //alfa z W.B. Robina
 
-            float det_J = 0.5*dist(nodes[id1], nodes[id2]);
+            double det_J = 0.5*dist(nodes[id1], nodes[id2]);
 
             for(int pc=0; pc<2; pc++){
                 int pc_on_egde = edge*2+pc;
@@ -669,13 +669,13 @@ namespace Fem {
             }
 
             //W.B. Robina
-            float temperature = nodes[id1].bc.t_ext;
-            float alfa = nodes[id1].bc.alfa;
+            double temperature = nodes[id1].bc.t_ext;
+            double alfa = nodes[id1].bc.alfa;
 
             //W.B. Neumanna;
-            float flux = nodes[id1].bc.flux;
+            double flux = nodes[id1].bc.flux;
 
-            float det_J = 0.5*dist(nodes[id1], nodes[id2]);
+            double det_J = 0.5*dist(nodes[id1], nodes[id2]);
 
             for(int pc=0; pc<2; pc++){
                 int pc_on_egde = edge*2+pc;
@@ -706,14 +706,14 @@ namespace Fem {
         return p_vec;
     }
 
-    Matrix calc_local_C_q(Fem::Quad &element, std::vector<Fem::Node> &nodes, float rho, float c)
+    Matrix calc_local_C_q(Fem::Quad &element, std::vector<Fem::Node> &nodes, double rho, double c)
     {
         Fem::Matrix C(4,4);
 
         for(int i=0; i<4; i++){
             Fem::Matrix C_local(4,4);
             Fem::Matrix jacob = element.jacobian_mat(element, nodes, Fem::pc_xi_q[i], Fem::pc_eta_q[i]);
-            float det_J = element.det_jacobian(jacob);
+            double det_J = element.det_jacobian(jacob);
 
             Fem::Matrix inv_jacob = element.inv_jacobian_mat(jacob);
 
@@ -787,7 +787,7 @@ namespace Fem {
 
         // --- 1) Punkty (Węzły siatki) ---
         out << "      <Points>\n"
-            "        <DataArray type=\"Float32\" NumberOfComponents=\"3\" format=\"ascii\">\n";
+            "        <DataArray type=\"double32\" NumberOfComponents=\"3\" format=\"ascii\">\n";
         out << std::setprecision(6);
         for (const auto& n : nodes) {
             out << "          " << n.x << " " << n.y << " 0\n";
@@ -838,7 +838,7 @@ namespace Fem {
 
         // --- 5) Dane punktowe (Temperatura) ---
         out << "      <PointData Scalars=\"Temperature\">\n"
-            "        <DataArray type=\"Float32\" Name=\"Temperature\" format=\"ascii\">\n";
+            "        <DataArray type=\"double32\" Name=\"Temperature\" format=\"ascii\">\n";
         for (double t : temp) {
             out << "          " << t << "\n";
         }

@@ -181,17 +181,17 @@ MainWindow::MainWindow()
         ImGui::BeginChild("SolverData", ImVec2(0, 300), true);
 
             ImGui::Text("Total time");
-            ImGui::InputFloat("s", &configuration.total_time);
+            ImGui::InputDouble("s", &configuration.total_time);
             ImGui::Text("Time step");
-            ImGui::InputFloat("s deltaT", &configuration.time_step);
+            ImGui::InputDouble("s deltaT", &configuration.time_step);
             ImGui::Text("Conductivity");
-            ImGui::InputFloat("W/mk", &configuration.conductivity);
+            ImGui::InputDouble("W/mk", &configuration.conductivity);
             ImGui::Text("Initial temperature");
-            ImGui::InputFloat("°C T0", &configuration.init_temperature);
+            ImGui::InputDouble("°C T0", &configuration.init_temperature);
             ImGui::Text("Density");
-            ImGui::InputFloat("kg/m^3", &configuration.density);
+            ImGui::InputDouble("kg/m^3", &configuration.density);
             ImGui::Text("Speific hest");
-            ImGui::InputFloat("J/kgK", &configuration.specific_heat);
+            ImGui::InputDouble("J/kgK", &configuration.specific_heat);
 
             ImGui::Text("Solver type");
 
