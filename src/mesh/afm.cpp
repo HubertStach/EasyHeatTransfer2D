@@ -2,6 +2,7 @@
 #include <cmath>
 #include <iostream>
 #include <limits>
+#include "../progress_bar.h"
 
 AdvancingFront::AdvancingFront(const std::vector<std::pair<double, double>>& allPoints, const std::vector<int>& boundaryIndices)
     : head(nullptr), frontSize(0), numBoundaryPoints(boundaryIndices.size())
@@ -140,7 +141,6 @@ void AdvancingFront::collapse() {
     std::cout<<"Starting Advancing Front Method for Mesh generation...\n";
     while (frontSize > 3 && iter < maxIterations) {
         iter++;
-        showProgress(triangles.size(), expectedTriangles);
 
         Point* pCur = cur->point;
         Point* pNext = cur->next->point;
@@ -186,6 +186,8 @@ void AdvancingFront::collapse() {
         } else {
             cur = cur->next;
         }
+
+        showProgress(triangles.size(), expectedTriangles);
     }
 
     if (frontSize == 3) {

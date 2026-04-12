@@ -730,7 +730,7 @@ std::vector<int> geo::Mesh::get_continuous_edges(int clicked_edge_idx) {
     int n1_id = start_edge.node_ids[0];
     int n2_id = start_edge.node_ids[1];
 
-    // Obliczamy referencyjny wektor kierunkowy (znormalizowany)
+    // znormalizowany wektor kieurnkowy
     float dx0 = this->nodes[n2_id].x - this->nodes[n1_id].x;
     float dy0 = this->nodes[n2_id].y - this->nodes[n1_id].y;
     float len0 = std::sqrt(dx0 * dx0 + dy0 * dy0);
@@ -747,7 +747,6 @@ std::vector<int> geo::Mesh::get_continuous_edges(int clicked_edge_idx) {
             int next_edge_idx = -1;
             int next_node = -1;
 
-            // Szukamy nieodwiedzonej krawędzi połączonej z current_node
             for (size_t i = 0; i < this->edges.size(); ++i) {
                 if (visited[i]) continue;
 
@@ -1187,7 +1186,9 @@ void geo::Mesh::create_nodes_SH_LO(float spacing) {
     }
 }
 
-
+//źródło algorytmu
+//Owen, Steven. (2000). A Survey of Unstructured Mesh Generation Technology. 7th International Meshing Roundtable. 3.
+// rodział 2.2.1 Point insertion
 void geo::Mesh::create_nodes_2(float spacing) {
     //początkowa triangulacja
     this->triangulate();
@@ -1229,17 +1230,6 @@ void geo::Mesh::create_nodes_2(float spacing) {
                     geo::Node center(x_p, y_p, false);
                     this->nodes.push_back(center);
                 }
-
-
-                //wzięta część z:
-                //Chew, L.. (1989). Guaranteed-quality triangular meshes.
-                //dodaje punkty wewnątrz okręgów opisanych na trójkątach a nie w ich środkach
-                /*
-                geo::Node center;
-                this->circumcenter(tr, center);
-                if (point_in_mesh(center.x, center.y)) {
-                    this->nodes.push_back(center);
-                }*/
             }
 
         }
@@ -1304,8 +1294,8 @@ void geo::Mesh::create_mesh(float spacing)
     // 2. Interpolujemy punkty na brzegach
     this->interpolate_bc_points(spacing);
     // 3. Generujemy punkty wewnątrz (wg S.H. Lo, 1985)
-    this->create_nodes_SH_LO(spacing);
-    //this->create_nodes_2(spacing);
+    //this->create_nodes_SH_LO(spacing);
+    this->create_nodes_2(spacing);
     // 4. Inicjowanie frontu
     this->init_afm();
     // 5. Uruchomienie frontu
@@ -1331,7 +1321,7 @@ int geo::get_node_clicked(const std::vector<geo::Node>& nodes, float x_pos, floa
         }
     }
 
-    return -1; // Nie kliknięto w żaden węzeł
+    return -1;
 }
 
 float geo::distSq(float x1, float y1, float x2, float y2) {
