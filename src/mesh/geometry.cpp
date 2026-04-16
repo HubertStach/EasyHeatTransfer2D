@@ -249,7 +249,7 @@ void geo::Mesh::draw_edges()
 }
 
 
-void geo::Mesh::draw_tr()
+void geo::Mesh::draw_tr(Color c)
 {
     for (const geo::Triangle& tr : this->triangles) {
 
@@ -261,13 +261,13 @@ void geo::Mesh::draw_tr()
         const Vector2 pos2 = { node2.x, node2.y };
         const Vector2 pos3 = { node3.x, node3.y };
 
-        DrawLineV(pos1, pos2, WHITE);
-        DrawLineV(pos2, pos3, WHITE);
-        DrawLineV(pos3, pos1, WHITE);
+        DrawLineV(pos1, pos2, c);
+        DrawLineV(pos2, pos3, c);
+        DrawLineV(pos3, pos1, c);
     }
 }
 
-void geo::Mesh::draw_q() {
+void geo::Mesh::draw_q(Color c) {
     for (const geo::Quad& q : this->quads) {
 
         const geo::Node& node1 = this->nodes[q.node_ids[0]];
@@ -280,10 +280,10 @@ void geo::Mesh::draw_q() {
         const Vector2 pos3 = { node3.x, node3.y };
         const Vector2 pos4 = { node4.x, node4.y };
 
-        DrawLineV(pos1, pos2, WHITE);
-        DrawLineV(pos2, pos3, WHITE);
-        DrawLineV(pos3, pos4, WHITE);
-        DrawLineV(pos4, pos1, WHITE);
+        DrawLineV(pos1, pos2, c);
+        DrawLineV(pos2, pos3, c);
+        DrawLineV(pos3, pos4, c);
+        DrawLineV(pos4, pos1, c);
     }
 }
 

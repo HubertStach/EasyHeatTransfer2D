@@ -94,8 +94,8 @@ namespace geo {
         //------Rysowanie siatki itd.------
         void draw_nodes(float size) const;
         void draw_edges();
-        void draw_tr();
-        void draw_q();
+        void draw_tr(Color c);
+        void draw_q(Color c);
         void draw_q_grad(std::vector<double> &temp, float max, float min) const;
         void draw_tr(std::vector<double> &temp, float max, float min) const;
         void draw_tr_grad(std::vector<double> &temp, float max, float min) const;

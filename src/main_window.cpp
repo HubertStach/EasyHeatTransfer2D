@@ -360,7 +360,6 @@ MainWindow::MainWindow()
                         int n2 = mesh.edges[edge_idx].node_ids[1];
                         Vector2 p1 = { mesh.nodes[n1].x, mesh.nodes[n1].y };
                         Vector2 p2 = { mesh.nodes[n2].x, mesh.nodes[n2].y };
-                        // Rysuje lekko grubszą linię stałej szerokości na ekranie, by krawędź się wyróżniała
                         DrawLineEx(p1, p2, 2.0f * (1.0f / camera.zoom), MAGENTA);
                     }
                 }
@@ -385,12 +384,13 @@ MainWindow::MainWindow()
                 }
             }
             if (display_triangles) {
-                mesh.draw_tr();
+                mesh.draw_tr(WHITE);
             }
 
             if (display_quads) {
-                mesh.draw_q();
+                mesh.draw_q(WHITE);
             }
+
 
             if (display_nodes) {
                 mesh.draw_nodes(3*(1/camera.zoom));
