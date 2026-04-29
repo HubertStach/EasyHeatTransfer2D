@@ -139,7 +139,7 @@ void AdvancingFront::collapse() {
     int expectedTriangles = 2 * numInteriorPoints + numBoundaryPoints - 2;
 
     std::cout<<"Starting Advancing Front Method for Mesh generation...\n";
-    while (frontSize > 3 && iter < maxIterations) {
+    while (frontSize > 3 /*&& iter < maxIterations*/) {
         iter++;
 
         Point* pCur = cur->point;

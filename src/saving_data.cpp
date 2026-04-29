@@ -35,7 +35,8 @@ void save_fem_data(geo::Mesh &mesh, Fem::GlobalData conf) {
     // 2.1 zapis punktów
     plik << "*Nodes\n";
     for (size_t i = 0; i < mesh.nodes.size(); i++) {
-        plik << i << ", " << mesh.nodes[i].x*0.01f << ", " << mesh.nodes[i].y*0.01f << "\n";
+        plik << i << ", " << mesh.nodes[i].x*0.01f << ", " << mesh.nodes[i].y*0.01f << "\n"; //cm
+        //plik << i << ", " << mesh.nodes[i].x*0.001f << ", " << mesh.nodes[i].y*0.001f << "\n"; //mm
     }
 
     // 2.2 zapis elementów trójkątnych
