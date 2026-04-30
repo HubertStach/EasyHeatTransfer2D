@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <fstream>
 #include <vector>
+#include <map>
 
 #include <filesystem>
 #include <string>
@@ -58,11 +59,43 @@ void save_fem_data(geo::Mesh &mesh, Fem::GlobalData conf) {
              << mesh.quads[i].node_ids[3] << "\n";
     }
 
-    // 2.4 zapis warunkow brzegowych
+    // 2.4 zapis warunkow brzegowych (Jako krawędzie id_a, id_b)
     plik << "*BC\n";
-    for (size_t i = 0; i < mesh.nodes.size(); i++) {
-        if (mesh.nodes[i].bc.is_bc) {
-            plik << i  << ", " << mesh.nodes[i].bc.flux << ", " << mesh.nodes[i].bc.alfa << ", " << mesh.nodes[i].bc.t_ext << "\n";
+
+    std::map<std::pair<int, int>, int> edge_counts;
+
+    // Budujemy topologię z trójkątów
+    for (const auto& tri : mesh.triangles) {
+        for (int i = 0; i < 3; ++i) {
+            int n1 = tri.node_ids[i];
+            int n2 = tri.node_ids[(i + 1) % 3];
+            edge_counts[{std::min(n1, n2), std::max(n1, n2)}]++;
+        }
+    }
+
+    // Budujemy topologię z czworokątów
+    for (const auto& q : mesh.quads) {
+        for (int i = 0; i < 4; ++i) {
+            int n1 = q.node_ids[i];
+            int n2 = q.node_ids[(i + 1) % 4];
+            edge_counts[{std::min(n1, n2), std::max(n1, n2)}]++;
+        }
+    }
+
+    // Filtrujemy i zapisujemy tylko zewnetrzne krawędzie, które mają flagi BC
+    for (const auto& entry : edge_counts) {
+        if (entry.second == 1) { // 1 = krawędź zewnętrzna
+            int id_a = entry.first.first;
+            int id_b = entry.first.second;
+
+            if (mesh.nodes[id_a].bc.is_bc && mesh.nodes[id_b].bc.is_bc) {
+                // Pobieramy dane z pierwszego węzła (zakładamy jednorodność)
+                double flux = mesh.nodes[id_a].bc.flux;
+                double alfa = mesh.nodes[id_a].bc.alfa;
+                double t_ext = mesh.nodes[id_a].bc.t_ext;
+
+                plik << id_a << ", " << id_b << ", " << flux << ", " << alfa << ", " << t_ext << "\n";
+            }
         }
     }
 

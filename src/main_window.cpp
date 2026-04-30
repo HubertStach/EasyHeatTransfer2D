@@ -217,18 +217,7 @@ MainWindow::MainWindow()
                 if (mesh_created) {
                     clean_vtu_files();
                     try{
-                        /*
-                        1. tworzymy nowy watek który policzy nam cały problem
-                        2. fem_solve wczytuje plik problemowy, tworząc plik rozwiązania (solution)
-                        3. w konstruktorze solution wczytuje on siatke z pliku i dane problemowe
-                        4. potem funkcja solve na obiekcie solution rozwiązuje problem i zapisuje
-                        wynik w każdym momencie czasowym w formacie .vtu
-
-                        */
-
-                        std::thread fem_thread(fem_solve, solver_type_str);
-                        fem_thread.join();
-
+                        fem_solve(solver_type_str);
                         vis.init_visualisation(mesh);
                         problem_solved = true;
                     }

@@ -132,14 +132,14 @@ bool AdvancingFront::is_valid_delaunay(const Point* p1, const Point* p2, const P
 void AdvancingFront::collapse() {
     if (!head || frontSize < 3) return;
     FrontNode* cur = head;
-    int maxIterations = points.size() * 100;
     int iter = 0;
 
     int numInteriorPoints = points.size() - numBoundaryPoints;
     int expectedTriangles = 2 * numInteriorPoints + numBoundaryPoints - 2;
+    int maxIterations = expectedTriangles * 100;
 
     std::cout<<"Starting Advancing Front Method for Mesh generation...\n";
-    while (frontSize > 3 /*&& iter < maxIterations*/) {
+    while (frontSize > 3 && iter < maxIterations) {
         iter++;
 
         Point* pCur = cur->point;

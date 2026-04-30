@@ -291,6 +291,61 @@ namespace Fem {
         return result;
     }
 
+    void load_bc(const std::string& file_name, std::vector<Triangle>& triangles, std::vector<Quad>& quads)
+    {
+        std::fstream file(file_name);
+        if(!file.good()){
+            std::cout << "Couldn't load text file\n";
+            return;
+        }
+
+        std::string line;
+        bool bc_selection = false;
+
+        while (std::getline(file, line)) {
+            if (line == "*BC") {
+                bc_selection = true;
+                continue;
+            }
+            if (line == "*Nodes" || line == "*Triangles" || line == "*Quads") {
+                bc_selection = false;
+            }
+
+            if (bc_selection) {
+                int id_a, id_b;
+                double flux, alfa, t_ext;
+                char comma;
+                std::istringstream iss(line);
+
+                if (iss >> id_a >> comma >> id_b >> comma >> flux >> comma >> alfa >> comma >> t_ext) {
+                    EdgeBC temp_bc(flux, alfa, t_ext);
+
+                    for (auto& tri : triangles) {
+                        for (int i = 0; i < 3; ++i) {
+                            int local_n1 = tri.node_ids[i];
+                            int local_n2 = tri.node_ids[(i + 1) % 3];
+                            if ((local_n1 == id_a && local_n2 == id_b) || (local_n1 == id_b && local_n2 == id_a)) {
+                                tri.edge_bc[i] = temp_bc;
+                            }
+                        }
+                    }
+
+                    for (auto& q : quads) {
+                        for (int i = 0; i < 4; ++i) {
+                            int local_n1 = q.node_ids[i];
+                            int local_n2 = q.node_ids[(i + 1) % 4];
+                            if ((local_n1 == id_a && local_n2 == id_b) || (local_n1 == id_b && local_n2 == id_a)) {
+                                q.edge_bc[i] = temp_bc;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        file.close();
+    }
+
+
     GlobalData load_configuration(const std::string& file_name)
     {
         std::fstream file;
@@ -324,48 +379,6 @@ namespace Fem {
 
         file.close();
         return data;
-    }
-
-    std::vector<Node> load_bc(const std::string& file_name, std::vector<Node>& nodes)
-    {
-        std::fstream file;
-
-        file.open(file_name);
-        if(!file.good()){
-            std::cout << "Couldn't load text file\n";
-            return nodes;
-        }
-
-        std::string line;
-        bool bc_selection = false;
-
-        while (std::getline(file, line)) {
-            if (line == "*BC") {
-                bc_selection = true;
-                continue;
-            }
-
-            if (line == "*Nodes" || line == "*Triangles") {
-                bc_selection = false;
-            }
-
-            if (bc_selection) {
-                int node_id;
-                double flux, alfa, t_ext;
-                char comma;
-                std::istringstream iss(line);
-                if (iss >> node_id >> comma >> flux >> comma >> alfa >> comma >> t_ext) {
-                    BC_node temp_bc(node_id, flux, alfa, t_ext);
-                    nodes[node_id].bc = temp_bc;
-                }
-                else {
-                    std::cout << "Failed to parse line: " << line << "\n"; // Debug output
-                }
-            }
-        }
-
-        file.close();
-        return nodes;
     }
 
     //prints current configuration from file
@@ -425,14 +438,16 @@ namespace Fem {
     {
         Matrix Hbc(3, 3);
 
-        for (int i = 0; i < 3; i++) { // pętla po bokach trójkąta
+        for (int i = 0; i < 3; i++) {
+
+            if (!local_el.edge_bc[i].exist) continue;
+
+            const double alfa = local_el.edge_bc[i].alfa;
+            // ---------------------
+
             int id1 = local_el.node_ids[i];
             int id2 = local_el.node_ids[(i + 1) % 3];
-
-            if (! (nodes[id1].bc.exist && nodes[id2].bc.exist)) continue;
-
-            const double alfa = nodes[id1].bc.alfa;
-            const double detJ = 0.5f*dist(nodes[id1], nodes[id2]);
+            const double detJ = 0.5f * dist(nodes[id1], nodes[id2]);
 
             for (int pc=0; pc<2; ++pc) {
                 const int pc_aktualny = i*2+pc;
@@ -451,28 +466,25 @@ namespace Fem {
                 }
             }
         }
-
         return Hbc;
     }
+
 
     Matrix calc_p_vec_tr(const Triangle &local_el, const std::vector<Node> &nodes)
     {
         Matrix p_vec(3, 1);
 
-        for (int i = 0; i < 3; i++) { // pętla po bokach trójkąta
-            const int id1 = local_el.node_ids[i];
-            const int id2 = local_el.node_ids[(i + 1) % 3];
+        for (int i = 0; i < 3; i++) {
 
-            if (!(nodes[id1].bc.exist && nodes[id2].bc.exist)) continue;
+            if (!local_el.edge_bc[i].exist) continue;
 
-            const double detJ = 0.5f*dist(nodes[id1], nodes[id2]);
+            const double flux = local_el.edge_bc[i].flux;
+            const double alfa = local_el.edge_bc[i].alfa;
+            const double t_ext = local_el.edge_bc[i].t_ext;
 
-            //W.B. Neumanna
-            const double flux = nodes[id1].bc.flux;
-
-            //W.B. Robina
-            const double alfa = nodes[id1].bc.alfa;
-            const double t_ext = nodes[id2].bc.t_ext;
+            int id1 = local_el.node_ids[i];
+            int id2 = local_el.node_ids[(i + 1) % 3];
+            const double detJ = 0.5f * dist(nodes[id1], nodes[id2]);
 
             Matrix pvec_edge(3,1);
 
@@ -489,19 +501,14 @@ namespace Fem {
                 }
             }
 
-            //Warunek brzegowy Robina
             for (int k =0; k<3; ++k) {
-                p_vec[k][0] += pvec_edge[k][0]*alfa*detJ*t_ext;
-            }
-
-            //Warunek brzegowy Neumanna
-            for (int k=0; k<3; ++k) {
-                p_vec[k][0] += pvec_edge[k][0]*detJ*flux;
+                p_vec[k][0] += pvec_edge[k][0] * alfa * detJ * t_ext; // Robin
+                p_vec[k][0] += pvec_edge[k][0] * detJ * flux;         // Neumann
             }
         }
-
         return p_vec;
     }
+
 
     Matrix calc_c_tr(const Triangle &local_el, const std::vector<Node> &nodes, const double density, const double specific_heat, const int c_lump=0)
     {
@@ -615,17 +622,18 @@ namespace Fem {
         Fem::Matrix H_bc(4,4);
 
         for(int edge=0; edge<4; edge++){
-            Fem::Matrix Hbc_edge(4,4);
-            int id1 = element.node_ids[edge];
-            int id2 = element.node_ids[(edge+1)%4];
 
-            if(!(nodes[id1].bc.exist && nodes[id2].bc.exist)){
+            if (!element.edge_bc[edge].exist) {
                 continue;
             }
 
-            double alfa = nodes[id1].bc.alfa; //alfa z W.B. Robina
+            double alfa = element.edge_bc[edge].alfa;
 
-            double det_J = 0.5*dist(nodes[id1], nodes[id2]);
+            int id1 = element.node_ids[edge];
+            int id2 = element.node_ids[(edge+1)%4];
+            double det_J = 0.5 * dist(nodes[id1], nodes[id2]);
+
+            Fem::Matrix Hbc_edge(4,4);
 
             for(int pc=0; pc<2; pc++){
                 int pc_on_egde = edge*2+pc;
@@ -660,22 +668,20 @@ namespace Fem {
         Fem::Matrix p_vec(4,1);
 
         for(int edge=0; edge<4; edge++){
-            Fem::Matrix P_edge(4,1);
-            int id1 = element.node_ids[edge];
-            int id2 = element.node_ids[(edge+1)%4];
 
-            if(!(nodes[id1].bc.exist && nodes[id2].bc.exist)){
+            if (!element.edge_bc[edge].exist) {
                 continue;
             }
 
-            //W.B. Robina
-            double temperature = nodes[id1].bc.t_ext;
-            double alfa = nodes[id1].bc.alfa;
+            double flux = element.edge_bc[edge].flux;
+            double alfa = element.edge_bc[edge].alfa;
+            double temperature = element.edge_bc[edge].t_ext;
 
-            //W.B. Neumanna;
-            double flux = nodes[id1].bc.flux;
+            int id1 = element.node_ids[edge];
+            int id2 = element.node_ids[(edge+1)%4];
+            double det_J = 0.5 * dist(nodes[id1], nodes[id2]);
 
-            double det_J = 0.5*dist(nodes[id1], nodes[id2]);
+            Fem::Matrix P_edge(4,1);
 
             for(int pc=0; pc<2; pc++){
                 int pc_on_egde = edge*2+pc;
@@ -687,17 +693,16 @@ namespace Fem {
                 Ns[3][0] = Fem::N4_q(Fem::bc_xi_q[pc_on_egde], Fem::bc_eta_q[pc_on_egde]);
 
                 for(int i=0; i<4;i++){
-                    P_edge[i][0] += Ns[i][0]*Fem::bc_weights_q[pc_on_egde]*temperature;
+                    P_edge[i][0] += Ns[i][0]*Fem::bc_weights_q[pc_on_egde];
                 }
             }
 
-            //W.B. Robina
+            // W.B. Robina
             for(int i=0; i<4;i++){
-                p_vec[i][0] += P_edge[i][0]*det_J*alfa;
+                p_vec[i][0] += P_edge[i][0]*det_J*alfa*temperature;
             }
 
-
-            //W.B. Neumanna
+            // W.B. Neumanna
             for(int i=0; i<4;i++){
                 p_vec[i][0] += P_edge[i][0]*det_J*flux;
             }
@@ -705,6 +710,7 @@ namespace Fem {
 
         return p_vec;
     }
+
 
     Matrix calc_local_C_q(Fem::Quad &element, std::vector<Fem::Node> &nodes, double rho, double c)
     {

@@ -26,36 +26,9 @@ namespace Fem{
     double dN3deta_q(double xi);
     double dN4deta_q(double xi);
 
-    struct BC_node{
-        int id;
-
-        bool exist=false;
-
-        double flux;
-        double alfa;
-        double t_ext;
-
-        BC_node(){
-            this->id=0;
-            this->flux=0.0;
-            this->alfa=0.0;
-            this->t_ext=0.0;
-        }
-
-        BC_node(int id, double flux, double alfa, double t_ext){
-            this->exist=true;
-            this->id=id;
-            this->flux=flux;
-            this->alfa=alfa;
-            this->t_ext=t_ext;
-        }
-    };
-
     struct Node{
         double x;
         double y;
-
-        BC_node bc;
 
         Node(){
         this-> x = 0; 
@@ -68,10 +41,21 @@ namespace Fem{
         }
     };
 
+    struct EdgeBC {
+        bool exist = false;
+        double flux = 0.0;
+        double alfa = 0.0;
+        double t_ext = 0.0;
+
+        EdgeBC() = default;
+        EdgeBC(double flux, double alfa, double t_ext) : exist(true), flux(flux), alfa(alfa), t_ext(t_ext) {}
+    };
+
     struct Triangle{
         int id{};
         int node_ids[3]{};
-        double area{};
+        double area;
+        EdgeBC edge_bc[3];
 
         Matrix H_local;
         Matrix H_bc;
@@ -95,6 +79,7 @@ namespace Fem{
     struct Quad{
         int id;
         int node_ids[4];
+        EdgeBC edge_bc[4];
 
         Matrix H_local;
         Matrix H_bc;
@@ -117,7 +102,7 @@ namespace Fem{
     std::vector<Node> load_nodes(const std::string& file_name);
     std::vector<Triangle> load_triangles(const std::string& file_name);
     std::vector<Quad> load_quad_elements(std::string file_name);
-    std::vector<Node> load_bc(const std::string& file_name, std::vector<Node>& nodes);
+    void load_bc(const std::string& file_name, std::vector<Triangle>& triangles, std::vector<Quad>& quads);
     
     struct GlobalData{
         double total_time;
@@ -189,7 +174,7 @@ namespace Fem{
             this->nodes = load_nodes(filepath);
             this->triangles = load_triangles(filepath);
             this->quads = load_quad_elements(filepath);
-            this->nodes = load_bc(filepath, this->nodes);
+            load_bc(filepath, this->triangles, this->quads);
 
             this->calc_x_char();
 
