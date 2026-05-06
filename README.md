@@ -16,8 +16,8 @@ On windows
 
     ./build.bat
 
-On linux
-
+On linux (you might need to use sudo)
+    chmod +x build.sh
     ./build.sh
 
 ## ToDo
