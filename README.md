@@ -17,6 +17,7 @@ On windows
     ./build.bat
 
 On linux (you might need to use sudo)
+
     chmod +x build.sh
     ./build.sh
 
