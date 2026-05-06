@@ -6,7 +6,7 @@ set -e
 # Zmienne konfiguracyjne
 BUILD_DIR="build"
 BUILD_TYPE="Debug"
-PROJECT_NAME="easyFEM"
+PROJECT_NAME="easyFEM" # Ta zmienna służy tylko do wyświetlania w skrypcie
 
 echo "=========================================="
 echo " Building project $PROJECT_NAME ($BUILD_TYPE) "
@@ -14,18 +14,14 @@ echo "=========================================="
 
 # 1. Konfiguracja (generowanie plików budowania)
 echo "[1/2] Configuring CMake..."
-# Tworzy folder build/ i konfiguruje projekt.
-# CMake sam dobierze najlepszy domyślny system budowania dla systemu użytkownika.
 cmake -S . -B $BUILD_DIR -DCMAKE_BUILD_TYPE=$BUILD_TYPE
 
 # 2. Właściwe budowanie (kompilacja)
-echo "[2/2] Compilating using CMake..."
-# Uniwersalna komenda kompilacji - ukrywa to czy pod spodem jest Make, Ninja czy coś innego.
-# --parallel sprawia, że kompilacja użyje wielu rdzeni procesora, co ją znacznie przyspieszy.
+echo "[2/2] Compiling using CMake..."
 cmake --build $BUILD_DIR --config $BUILD_TYPE --parallel
 
 echo "=========================================="
-echo  "Project has been built succesfully"
-echo  "to run %PROJECT_NAME% write:"
-echo  "".\%BUILD_DIR%\%BUILD_TYPE%\%PROJECT_NAME%""
+echo "Project has been built successfully!"
+echo "To run the application, type:"
+echo "./$BUILD_DIR/EHT2D"
 echo "=========================================="
