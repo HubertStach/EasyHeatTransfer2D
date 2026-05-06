@@ -6,7 +6,7 @@ set -e
 # Zmienne konfiguracyjne
 BUILD_DIR="build"
 BUILD_TYPE="Debug"
-PROJECT_NAME="easyFEM" # Nazwa tylko do wyświetlania w terminalu
+PROJECT_NAME="EasyHeatTransfer2D" # Nazwa tylko do wyświetlania w terminalu
 
 echo "=========================================="
 echo " Building project $PROJECT_NAME ($BUILD_TYPE) "
