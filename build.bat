@@ -4,7 +4,7 @@ setlocal
 :: Zmienne konfiguracyjne
 set BUILD_DIR=build
 set BUILD_TYPE=Debug
-set PROJECT_NAME=easyFEM
+set PROJECT_NAME=EasyHeatTransfer2D
 
 echo ==========================================
 echo  Building project %PROJECT_NAME% (%BUILD_TYPE%) 
