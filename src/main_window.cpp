@@ -7,503 +7,261 @@
 #include "../include/raymath.h"
 
 #include <vector>
-#include <algorithm> // do std::min/max
+#include <algorithm>
+#include <iostream>
+#include <thread>
 
 #include "app_ui/axis.h"
 #include "app_ui/grid.h"
 
 #include "mes/mes.h"
 #include "mesh/geometry.h"
-//#include "mesh/mesh.h"
-
 #include "saving_data.h"
 #include "visual/visualisation.h"
 #include "main_window.h"
-#include "thread"
 
-MainWindow::MainWindow()
-{
+MainWindow::MainWindow() {
     SetConfigFlags(FLAG_WINDOW_RESIZABLE);
-    InitWindow(screenWidth, screenHeight, "easyFEM");
+    InitWindow(screenWidth, screenHeight, "easyFEM - Pipeline UI");
     SetTargetFPS(60);
     rlImGuiSetup(true);
 
-    camera.offset = {screenWidth/2.0f + 0.5f*toolbarWidth, screenHeight/2.0f};
-    camera.target = {0.0f, 0.0f};
-    camera.rotation = 0.0f;
+    ApplyModernDarkStyle();
+
+    camera.offset = { screenWidth / 2.0f + 0.5f * toolbarWidth, screenHeight / 2.0f };
+    camera.target = { 0.0f, 0.0f };
     camera.zoom = camera_base_zoom;
 
-    geo::Mesh mesh;
-
-    float bc_flux = 0.0f;
-    float bc_alfa = 0.0f;
-    float bc_text = 0.0f;
-
-    int bc_edge_clicked = -1;
-    std::vector<int> selected_edges; // Lista przechowująca zaznaczone krawędzie
-    bool bc_options_saved = false;
-    bool problem_solved = false;
-
-    //visualisation
-    bool loading_visual = false;
-    Visualisation vis;
-    bool auto_play = false;
-    bool display_nodes = true;
-    bool display_triangles = true;
-    bool display_quads = true;
-
-    std::string solver_type_str = "implicit_euler";
-    int current_solver = 1; // 0 = Explicit, 1 = Implicit, 2 = Crank-Nicolson
-
-    //cleaning Data folder
     clean_vtu_files();
-    std::cout<<"cleaning vtu files...\n";
+}
 
-    while (!WindowShouldClose())
-    {
-        // DRAW START
-        BeginDrawing();
-        ClearBackground(RAYWHITE);
+void MainWindow::ApplyModernDarkStyle() {
+    ImGui::StyleColorsDark();
+    ImGuiStyle& style = ImGui::GetStyle();
+    style.WindowRounding = 6.0f;
+    style.ChildRounding = 4.0f;
+    style.FrameRounding = 4.0f;
+    style.TabRounding = 4.0f;
+    style.Colors[ImGuiCol_WindowBg] = ImVec4(0.08f, 0.08f, 0.09f, 1.00f);
+    style.Colors[ImGuiCol_ChildBg] = ImVec4(0.11f, 0.11f, 0.13f, 1.00f);
+}
 
+void MainWindow::Run() {
+    while (!WindowShouldClose()) {
         int currentWidth = GetRenderWidth();
         int currentHeight = GetRenderHeight();
 
-        // ------------------ IMGUI LAYOUT ------------------
+        Vector2 worldPos = GetScreenToWorld2D(GetMousePosition(), camera);
+        worldPos.x = round(worldPos.x / 0.1f) * 0.1f;
+        worldPos.y = round(worldPos.y / 0.1f) * 0.1f;
+        Vector2 screenPos = GetWorldToScreen2D(worldPos, camera);
+
+        BeginDrawing();
+        ClearBackground({20, 20, 25, 255}); // Tło viewportu
+
         rlImGuiBegin();
 
-        ImGui::SetNextWindowPos({0,0}, ImGuiCond_Always);
-        ImGui::SetNextWindowSize({(float)currentWidth,(float)currentHeight}, ImGuiCond_Always);
-        ImGui::Begin("Root", nullptr,
-                    ImGuiWindowFlags_NoDecoration |
-                    ImGuiWindowFlags_NoBringToFrontOnFocus);
+        // ROOT WINDOW
+        ImGui::SetNextWindowPos({ 0,0 }, ImGuiCond_Always);
+        ImGui::SetNextWindowSize({ (float)currentWidth, (float)currentHeight }, ImGuiCond_Always);
+        ImGui::Begin("Root", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoBackground);
 
-        // Toolbar
-        ImGui::BeginChild("Toolbar", {toolbarWidth,0}, true);
-        ImGui::Text("Tools");
+        // LEWY PANEL STEROWANIA
+        ImGui::BeginChild("Toolbar", { toolbarWidth, 0 }, true);
+        ImGui::TextColored({ 0.3f, 0.6f, 1.0f, 1.0f }, "SIMULATION STEPS");
         ImGui::Separator();
+        ImGui::Spacing();
 
-        if (ImGui::Button("Reset Camera")){
-            camera.zoom   = camera_base_zoom;
-            camera.target = { 0.0f, 0.0f };
-        }
-
-        if (ImGui::Button("Clean Data folder")){
-            clean_vtu_files();
-            std::cout<<"cleaning vtu files...\n";
-        }
-        if (ImGui::Button("Load .txt mesh")) {
-            mesh.load_mesh_from_txt();
-            mesh_created = true;
-            problem_solved = false;
-        }
-        if (ImGui::Button("Load .inp file")){
-            load_inp_mesh(mesh);
-            //w tym przypadku dajemy możliwość użytkownikowi żeby sam ustawił BCs, jako że czasami są problemy z siatkami
-            //i tym które węzły mają BC, dajemy możliwość dowolnego zdefiniowania brzegu z BC.
-            //Ta funkcja tworzy ze wszytskich krawędzi (też i tych wewnątrz) krawędzie na których można ustawić BC.
-            mesh.create_edges();
-            mesh_created = true;
-            problem_solved = false;
+        if (ImGui::BeginTabBar("Steps")) {
+            if (ImGui::BeginTabItem("1. Mesh")) { DrawTabMesh(); ImGui::EndTabItem(); }
+            if (ImGui::BeginTabItem("2. BCs")) { DrawTabBCs(); ImGui::EndTabItem(); }
+            if (ImGui::BeginTabItem("3. Solver")) { DrawTabSolver(); ImGui::EndTabItem(); }
+            if (ImGui::BeginTabItem("4. Results")) { DrawTabVisualisation(); ImGui::EndTabItem(); }
+            ImGui::EndTabBar();
         }
 
-        ImGui::BeginChild("##child1", ImVec2(0, 300), true);
-        ImGui::Text("Mesh settings");
-        ImGui::Checkbox("Start adding points", &creatingMesh);
-        ImGui::TextDisabled("E: Place point | Q: Pop");
-
-        if (ImGui::Button("Create Mesh")) {
-            if (mesh.nodes.size() >= 3) {
-                mesh_created = true;
-                mesh.create_mesh(spacing);
-                problem_solved = false;
-            }
-        }
-
-        if (ImGui::Button("Reset nodes")){
-            //resetowanie siatki
-            mesh.nodes.clear();
-            mesh.triangles.clear();
-            mesh.edges.clear();
-            bc_edge_clicked = -1;
-            selected_edges.clear();
-            mesh_created = false;
-            problem_solved = false;
-        }
+        ImGui::SetCursorPosY(ImGui::GetWindowHeight() - 110);
         ImGui::Separator();
-
-        if (bc_edge_clicked != -1) {
-            if (selected_edges.size() > 1) {
-                ImGui::Text("Selected %zu continuous edges", selected_edges.size());
-            } else {
-                ImGui::Text("BC edge %d id clicked", bc_edge_clicked);
-            }
-
-            ImGui::InputFloat("Flux", &bc_flux);
-            ImGui::InputFloat("Alpha", &bc_alfa);
-            ImGui::InputFloat("T_ext", &bc_text);
-
-            if(ImGui::Button("Save")){
-                for(int edge_idx : selected_edges) {
-                    int node_id1 = mesh.edges[edge_idx].node_ids[0];
-                    int node_id2 = mesh.edges[edge_idx].node_ids[1];
-
-                    mesh.nodes[node_id1].bc.initialised = true;
-                    mesh.nodes[node_id1].bc.flux = bc_flux;
-                    mesh.nodes[node_id1].bc.alfa = bc_alfa;
-                    mesh.nodes[node_id1].bc.t_ext = bc_text;
-
-                    mesh.nodes[node_id2].bc.initialised = true;
-                    mesh.nodes[node_id2].bc.flux = bc_flux;
-                    mesh.nodes[node_id2].bc.alfa = bc_alfa;
-                    mesh.nodes[node_id2].bc.t_ext = bc_text;
-
-                    mesh.edges[edge_idx].bc_edge.initialised = true;
-                    mesh.edges[edge_idx].bc_edge.flux = bc_flux;
-                    mesh.edges[edge_idx].bc_edge.alfa = bc_alfa;
-                    mesh.edges[edge_idx].bc_edge.t_ext = bc_text;
-                }
-
-                bc_flux = 0.0f;
-                bc_alfa = 0.0f;
-                bc_text = 0.0f;
-            }
-        }
-
-        if (ImGui::CollapsingHeader("Mesh options")){
-            ImGui::BeginChild("##child3", ImVec2(0, 52), true);
-            ImGui::Text("Node spacing density");
-            ImGui::SliderFloat("##", &spacing, 0.1f, 5.0f);
-
-            ImGui::EndChild();
-        }
+        ImGui::Checkbox("Show XY Axis", &showXY);
+        ImGui::Checkbox("Show Grid", &show_grid_bool);
+        if (ImGui::Button("Reset Camera View", ImVec2(-1, 0))) { camera.zoom = camera_base_zoom; camera.target = { 0,0 }; }
 
         ImGui::EndChild();
-        ImGui::BeginChild("SolverData", ImVec2(0, 300), true);
-
-            ImGui::Text("Total time");
-            ImGui::InputDouble("s", &configuration.total_time);
-            ImGui::Text("Time step");
-            ImGui::InputDouble("s deltaT", &configuration.time_step);
-            ImGui::Text("Conductivity");
-            ImGui::InputDouble("W/mk", &configuration.conductivity);
-            ImGui::Text("Initial temperature");
-            ImGui::InputDouble("°C T0", &configuration.init_temperature);
-            ImGui::Text("Density");
-            ImGui::InputDouble("kg/m^3", &configuration.density);
-            ImGui::Text("Speific hest");
-            ImGui::InputDouble("J/kgK", &configuration.specific_heat);
-
-            ImGui::Text("Solver type");
-
-            if (ImGui::RadioButton("Explicit Euler", &current_solver, 0)) {
-                solver_type_str = "explicit_euler";
-            }
-            if (ImGui::RadioButton("Implicit Euler", &current_solver, 1)) {
-                solver_type_str = "implicit_euler";
-            }
-            if (ImGui::RadioButton("Crank-Nicolson", &current_solver, 2)) {
-                solver_type_str = "crank-nicolson";
-            }
-
-            if (ImGui::Button("Save")){
-                std::cout<<"Save clicked\n";
-                if(mesh_created){
-                   save_fem_data(mesh, configuration);
-                }
-            }
-
-
-            if (ImGui::Button("Solve")){
-                if (mesh_created) {
-                    clean_vtu_files();
-                    try{
-                        /*
-                        1. tworzymy nowy watek który policzy nam cały problem
-                        2. fem_solve wczytuje plik problemowy, tworząc plik rozwiązania (solution)
-                        3. w konstruktorze solution wczytuje on siatke z pliku i dane problemowe
-                        4. potem funkcja solve na obiekcie solution rozwiązuje problem i zapisuje
-                        wynik w każdym momencie czasowym w formacie .vtu
-
-                        */
-
-                        std::thread fem_thread(fem_solve, solver_type_str);
-                        fem_thread.join();
-
-                        vis.init_visualisation(mesh);
-                        problem_solved = true;
-                    }
-                    catch (const std::runtime_error& re) {
-                        std::cout << "Runtime error: " << re.what() << std::endl;
-                    }
-                    catch(const std::exception& ex) {
-                        std::cout << "Error occurred: " << ex.what() << std::endl;
-                    }
-                    catch(...){
-                        std::cout << "Unknown error" <<std::endl;
-                    }
-                }
-                else {
-                    std::cout<<"Create mesh first\n";
-                }
-            }
-
-        ImGui::EndChild();
-
-        if (problem_solved) {
-            ImGui::BeginChild("Visualisation", ImVec2(0, 200), true);
-
-            ImGui::Checkbox("visual", &loading_visual);
-            ImGui::InputFloat("Minimum", &vis.min_temp);
-            ImGui::InputFloat("Maximum", &vis.max_temp);
-
-            if (vis.solved && loading_visual) {
-                ImGui::Checkbox("Autoplay", &auto_play);
-                int max_idx = vis.time_ids.size() - 1;
-                ImGui::Text("Krok czasowy: %d (Czas: %d)", vis.current_step, vis.time_ids[vis.current_step]);
-                ImGui::SliderInt("Oś czasu", &vis.current_step, 0, max_idx);
-
-                if (auto_play) {
-                    int next_id = vis.current_step + 1;
-                    if (next_id >= vis.time_ids.size()) {
-                        next_id = 0;
-                    }
-                    vis.current_step = next_id;
-                }
-
-                ImGui::Checkbox("Display nodes", &display_nodes);
-                ImGui::Checkbox("Display triangles", &display_triangles);
-                ImGui::Checkbox("Display quads", &display_quads);
-            }
-
-            if (!loading_visual) {
-                display_nodes = true;
-                display_triangles = true;
-                display_quads = true;
-            }
-
-            ImGui::EndChild();
-        }
-
-        if (ImGui::CollapsingHeader("Options")){
-
-            ImGui::BeginChild("##child4", ImVec2(0, 200), true);
-            ImGui::Checkbox("Show XY", &showXY);
-            ImGui::Checkbox("Show grid", &show_grid_bool);
-
-            ImGui::Text("Mouse sensitivity");
-            ImGui::SliderFloat("##", &mouseSensitivity, 0.1, 20);
-            if(ImGui::Button("Reset sensitivity")){
-                mouseSensitivity = 8.0f;
-            }
-            ImGui::EndChild();
-        }
-
-        ImGui::EndChild(); //koniec lewego panelu
 
         ImGui::SameLine();
 
-        ImGui::BeginChild("MainPanel", {0,0}, false);
+        // GŁÓWNY PANEL VIEWPORTU
+        ImGui::BeginChild("MainPanel", { 0,0 }, false, ImGuiWindowFlags_NoBackground);
         ImVec2 panelMin = ImGui::GetCursorScreenPos();
         ImVec2 panelSize = ImGui::GetContentRegionAvail();
-        bool panelHover = ImGui::IsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByPopup);
+        bool panelHover = ImGui::IsWindowHovered();
         ImGui::EndChild();
 
-        ImGui::End();
-
+        ImGui::End(); // End Root
         rlImGuiEnd();
 
-        // ------------------ CAMERA INTERACTION ------------------
-        // Only pan/zoom when hovering MainPanel
+        // --- OBSŁUGA KAMERY (FIX: Działa zawsze, niezależnie od trybu) ---
         camera.offset = { panelMin.x + panelSize.x / 2.0f, panelMin.y + panelSize.y / 2.0f };
-        if (panelHover)
-        {
-            if (IsMouseButtonDown(MOUSE_BUTTON_LEFT))
-            {
+        if (panelHover) {
+            // Przesuwanie widoku (LPM) - teraz działa ZAWSZE
+            if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
                 Vector2 delta = GetMouseDelta();
                 camera.target.x -= delta.x / camera.zoom;
                 camera.target.y -= delta.y / camera.zoom;
             }
+            // Zoom (Kółko)
             float wheel = GetMouseWheelMove();
-            if (wheel != 0.0f)
-            {
+            if (wheel != 0.0f) {
                 camera.zoom += wheel * mouseSensitivity;
-                if (camera.zoom < 10.0f) camera.zoom = 10.0f;
+                if (camera.zoom < 5.0f) camera.zoom = 5.0f;
             }
         }
 
-        // ------------------ MAIN WINDOW ------------------
-        // Creating scissors to cut main view part for the raylib
-        int sx = (int)panelMin.x;
-        int sy = currentHeight - (int)(panelMin.y + panelSize.y);
-        int sw = (int)panelSize.x;
-        int sh = (int)panelSize.y;
-
+        // --- RYSOWANIE SYMULACJI ---
         rlEnableScissorTest();
-        rlScissor(sx, sy, sw, sh);
+        rlScissor((int)panelMin.x, currentHeight - (int)(panelMin.y + panelSize.y), (int)panelSize.x, (int)panelSize.y);
 
         BeginMode2D(camera);
-            // Whole rendering is being done here
+            if (show_grid_bool) show_adaptive_grid_dim(camera);
 
-            if(show_grid_bool){
-                show_adaptive_grid_dim(camera);
-                //show_grid_dim(camera);
-            }
-
-            //rysowanie punktów i wielokątów
             mesh.draw_edges();
 
-            // Podświetlanie aktualnie zaznaczonych krawędzi (rysowanie nad standardowymi niebieskimi/czerwonymi)
+            // Zaznaczone krawędzie (MAGENTA)
             if (bc_edge_clicked != -1 && !selected_edges.empty()) {
-                for (int edge_idx : selected_edges) {
-                    if (edge_idx >= 0 && edge_idx < (int)mesh.edges.size()) {
-                        int n1 = mesh.edges[edge_idx].node_ids[0];
-                        int n2 = mesh.edges[edge_idx].node_ids[1];
-                        Vector2 p1 = { mesh.nodes[n1].x, mesh.nodes[n1].y };
-                        Vector2 p2 = { mesh.nodes[n2].x, mesh.nodes[n2].y };
-                        DrawLineEx(p1, p2, 2.0f * (1.0f / camera.zoom), MAGENTA);
-                    }
+                for (int id : selected_edges) {
+                    int n1 = mesh.edges[id].node_ids[0], n2 = mesh.edges[id].node_ids[1];
+                    DrawLineEx({ (float)mesh.nodes[n1].x, (float)mesh.nodes[n1].y },
+                               { (float)mesh.nodes[n2].x, (float)mesh.nodes[n2].y },
+                               3.0f * (1.0f / camera.zoom), MAGENTA);
                 }
             }
 
             if (loading_visual && vis.solved) {
-                if (vis.current_step >= 0 && vis.current_step < vis.time_ids.size()) {
-
-                    std::vector<double> current_temps;
-                    current_temps.reserve(mesh.nodes.size());
-                    for (size_t i = 0; i < mesh.nodes.size(); i++) {
-                        if (i < vis.temps_matrix.rows) {
-                            current_temps.push_back(vis.temps_matrix[i][vis.current_step]);
-                        } else {
-                            current_temps.push_back(0.0);
-                        }
-                    }
-
-                    mesh.draw_tr_grad(current_temps, vis.max_temp, vis.min_temp);
-                    mesh.draw_q_grad(current_temps, vis.max_temp, vis.min_temp);
-                    //mesh.draw_tr(current_temps, vis.max_temp, vis.min_temp);
-                }
-            }
-            if (display_triangles) {
-                mesh.draw_tr(WHITE);
+                std::vector<double> current_temps;
+                for (size_t i = 0; i < mesh.nodes.size(); i++)
+                    current_temps.push_back(i < vis.temps_matrix.rows ? vis.temps_matrix[i][vis.current_step] : 0.0);
+                mesh.draw_tr_grad(current_temps, vis.max_temp, vis.min_temp);
+                mesh.draw_q_grad(current_temps, vis.max_temp, vis.min_temp);
             }
 
-            if (display_quads) {
-                mesh.draw_q(WHITE);
-            }
-
-
-            if (display_nodes) {
-                mesh.draw_nodes(3*(1/camera.zoom));
-            }
-
+            if (display_triangles || !loading_visual) mesh.draw_tr(WHITE);
+            if (display_quads || !loading_visual) mesh.draw_q(WHITE);
+            if (display_nodes || !loading_visual) mesh.draw_nodes(3 * (1 / camera.zoom));
         EndMode2D();
 
-        // ------------------ Legenda temperatury  ------------------
+        // --- LEGENDA ---
         if (loading_visual && vis.solved) {
-            float legendWidth = 25.0f;
-            float legendHeight = std::max(100.0f, std::min(400.0f, panelSize.y - 80.0f));
-            float legendX = panelMin.x + panelSize.x - legendWidth - 80.0f;
-            float legendY = panelMin.y + (panelSize.y - legendHeight) / 2.0f;
-
-            //gradient z czerwonego na biały i z białego na niebieski
-            DrawRectangleGradientV((int)legendX, (int)legendY, (int)legendWidth, (int)(legendHeight / 2.0f), RED, WHITE);
-            DrawRectangleGradientV((int)legendX, (int)(legendY + legendHeight / 2.0f), (int)legendWidth, (int)(legendHeight - legendHeight / 2.0f), WHITE, BLUE);
-
-            // Ramka wokół gradientu
-            DrawRectangleLines((int)legendX, (int)legendY, (int)legendWidth, (int)legendHeight, BLACK);
-
-            // Rysowanie etykiet i podziałek w 9 krokach (0..8)
-            int num_steps = 12;
-            for (int i = 0; i < num_steps; i++) {
-                // Od góry (1.0 = Czerwony/Max) do dołu (0.0 = Niebieski/Min)
-                float t = 1.0f - ((float)i / (num_steps - 1));
-                float temp_val = vis.min_temp + t * (vis.max_temp - vis.min_temp);
-
-                int lineY = (int)(legendY + i * (legendHeight / (num_steps - 1)));
-
-                // Podziałka przy prostokącie
-                DrawLine((int)(legendX + legendWidth), lineY, (int)(legendX + legendWidth + 5), lineY, BLACK);
-
-                // Tekst z wartością temperatury
-                int textY = lineY - 7; // Przesunięcie aby tekst był na środku kreski
-                DrawTextEx(GetFontDefault(), TextFormat("%.2f", temp_val), { legendX + legendWidth + 10.0f, (float)textY }, 15, 1, WHITE);
+            float legW = 25, legH = std::min(400.0f, panelSize.y - 100.0f);
+            float legX = panelMin.x + panelSize.x - 110, legY = panelMin.y + (panelSize.y - legH) / 2.0f;
+            DrawRectangleGradientV((int)legX, (int)legY, (int)legW, (int)legH/2, RED, WHITE);
+            DrawRectangleGradientV((int)legX, (int)(legY + legH/2), (int)legW, (int)legH/2, WHITE, BLUE);
+            DrawRectangleLines((int)legX, (int)legY, (int)legW, (int)legH, RAYWHITE);
+            for (int i = 0; i < 6; i++) {
+                float t = 1.0f - (i / 5.0f);
+                float val = vis.min_temp + t * (vis.max_temp - vis.min_temp);
+                DrawTextEx(GetFontDefault(), TextFormat("%.1f", val), { legX + 35, legY + i*(legH/5) - 7 }, 16, 1, RAYWHITE);
             }
         }
 
-
-        Vector2 worldPos = GetScreenToWorld2D(GetMousePosition(), camera);
-        // Snap to grid
-        worldPos.x = round(worldPos.x / 0.1f) * 0.1f;
-        worldPos.y = round(worldPos.y / 0.1f) * 0.1f;
-
-        // Convert snapped world position back to screen position for drawing
-        Vector2 screenPos = GetWorldToScreen2D(worldPos, camera);
-
-        if (panelHover && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-
-            int hit_node_id = geo::get_edge_clicked(mesh.edges, mesh.nodes, worldPos.x, worldPos.y);
-
-            if (hit_node_id != -1) {
-
-                bc_edge_clicked = hit_node_id;
-                bc_options_saved = false;
-
-                // Jeżeli mesh_created i trzymamy shift pobieramy połączone krawędzie
-                if (mesh_created && (IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT))) {
-                    selected_edges = mesh.get_continuous_edges(hit_node_id);
-                } else {
-                    selected_edges.clear();
-                    selected_edges.push_back(hit_node_id);
-                }
-
-                // Wczytanie konfiguracji z klikniętej (głównej) krawędzi
-                if (mesh.edges[hit_node_id].bc_edge.initialised) {
-                    bc_flux = mesh.edges[hit_node_id].bc_edge.flux;
-                    bc_alfa = mesh.edges[hit_node_id].bc_edge.alfa;
-                    bc_text = mesh.edges[hit_node_id].bc_edge.t_ext;
-                } else {
-                    bc_flux = 0.0f;
-                    bc_alfa = 0.0f;
-                    bc_text = 0.0f;
+        // --- INPUT: KLIKANIE KRAWĘDZI I TWORZENIE SIATKI ---
+        // Wybieranie krawędzi (Tylko gdy nie tworzymy siatki)
+        if (panelHover && IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && !creatingMesh) {
+            int hit = geo::get_edge_clicked(mesh.edges, mesh.nodes, worldPos.x, worldPos.y);
+            if (hit != -1) {
+                bc_edge_clicked = hit;
+                if (IsKeyDown(KEY_LEFT_SHIFT)) selected_edges = mesh.get_continuous_edges(hit);
+                else { selected_edges.clear(); selected_edges.push_back(hit); }
+                if (mesh.edges[hit].bc_edge.initialised) {
+                    bc_flux = mesh.edges[hit].bc_edge.flux; bc_alfa = mesh.edges[hit].bc_edge.alfa; bc_text = mesh.edges[hit].bc_edge.t_ext;
                 }
             }
         }
-        //std::cout<<worldPos.x<<", "<<worldPos.y<<"\n";
 
-        if(creatingMesh){
-            DrawCircleV(screenPos, 3, RED);
-
-            Vector2 pos_vec({-44, -24 });
-            DrawTextEx(GetFontDefault(), TextFormat("[%0.1f, %0.1f]", (float)worldPos.x, (float)worldPos.y), Vector2Add(screenPos, pos_vec), 20, 2, BLACK);
-
-            if(IsKeyPressed(KEY_E)){
-                //dodawanie punktu
-                mesh.add_point(worldPos.x, worldPos.y);
-            }
-
-            if(IsKeyPressed(KEY_Q)){
-                //usuwanie punktu
-                mesh.pop_point();
-                mesh.mesh_created=false;
-                mesh_created=false;
-                bc_edge_clicked = -1;
-                selected_edges.clear();
-                loading_visual = false;
-               //std::cout<<mesh.nodes.size()<<"\n";
-            }
-
+        // Tryb tworzenia siatki
+        if (creatingMesh) {
+            DrawCircleV(screenPos, 4, RED);
+            DrawTextEx(GetFontDefault(), TextFormat("[%0.1f, %0.1f]", worldPos.x, worldPos.y), { screenPos.x + 10, screenPos.y - 20 }, 18, 1, RAYWHITE);
+            if (IsKeyPressed(KEY_E)) mesh.add_point(worldPos.x, worldPos.y);
+            if (IsKeyPressed(KEY_Q)) { mesh.pop_point(); mesh_created = false; }
         }
 
         rlDisableScissorTest();
-
-        if(showXY){
-            DrawCoordinateAxes(camera, panelMin, panelSize);
-        }
+        if (showXY) DrawCoordinateAxes(camera, panelMin, panelSize);
 
         EndDrawing();
-        // DRAW END
     }
-
     rlImGuiShutdown();
     CloseWindow();
+}
+
+// ================= WIDGETY ZAKŁADEK =================
+
+void MainWindow::DrawTabMesh() {
+    ImGui::Spacing();
+    if (ImGui::Button("Load .txt File", ImVec2(-1, 0))) { mesh.load_mesh_from_txt(); mesh_created = true; }
+    if (ImGui::Button("Load .inp File", ImVec2(-1, 0))) { load_inp_mesh(mesh); mesh.create_edges(); mesh_created = true; }
+    ImGui::Separator();
+    ImGui::Checkbox("Enable Point Placement (E)", &creatingMesh);
+    ImGui::TextDisabled("E: Place | Q: Remove last");
+    ImGui::SliderFloat("Node Spacing", &spacing, 0.1f, 5.0f);
+    if (ImGui::Button("GENERATE MESH", ImVec2(-1, 35))) { if (mesh.nodes.size() >= 3) { mesh_created = true; mesh.create_mesh(spacing); } }
+    if (ImGui::Button("Clear All", ImVec2(-1, 0))) { mesh.nodes.clear(); mesh.edges.clear(); mesh_created = false; bc_edge_clicked = -1; }
+}
+
+void MainWindow::DrawTabBCs() {
+    ImGui::Spacing();
+    if (!mesh_created) { ImGui::TextWrapped("Generate mesh first."); return; }
+    if (bc_edge_clicked != -1) {
+        ImGui::TextColored({1,0,1,1}, "Selected: %zu edges", selected_edges.size());
+        ImGui::InputFloat("Flux [q]", &bc_flux);
+        ImGui::InputFloat("Alpha [h]", &bc_alfa);
+        ImGui::InputFloat("T_ext", &bc_text);
+        if (ImGui::Button("Save BC Values", ImVec2(-1, 30))) {
+            for (int id : selected_edges) {
+                int n1 = mesh.edges[id].node_ids[0], n2 = mesh.edges[id].node_ids[1];
+                mesh.nodes[n1].bc.initialised = mesh.nodes[n2].bc.initialised = mesh.edges[id].bc_edge.initialised = true;
+                mesh.nodes[n1].bc.flux = mesh.nodes[n2].bc.flux = mesh.edges[id].bc_edge.flux = bc_flux;
+                mesh.nodes[n1].bc.alfa = mesh.nodes[n2].bc.alfa = mesh.edges[id].bc_edge.alfa = bc_alfa;
+                mesh.nodes[n1].bc.t_ext = mesh.nodes[n2].bc.t_ext = mesh.edges[id].bc_edge.t_ext = bc_text;
+            }
+        }
+    } else ImGui::TextDisabled("No edge selected. Click one!");
+}
+
+void MainWindow::DrawTabSolver() {
+    ImGui::Spacing();
+    ImGui::InputDouble("Sim Time", &configuration.total_time);
+    ImGui::InputDouble("Step dT", &configuration.time_step);
+    ImGui::Separator();
+    ImGui::RadioButton("Explicit", &current_solver, 0);
+    ImGui::RadioButton("Implicit", &current_solver, 1);
+    ImGui::RadioButton("Crank-Nicolson", &current_solver, 2);
+
+    if (current_solver == 0) solver_type_str = "explicit_euler";
+    else if (current_solver == 1) solver_type_str = "implicit_euler";
+    else solver_type_str = "crank-nicolson";
+
+    if (ImGui::Button("RUN SIMULATION", ImVec2(-1, 40))) {
+        if (mesh_created) {
+            save_fem_data(mesh, configuration);
+            std::thread fem_thread(fem_solve, solver_type_str);
+            fem_thread.join();
+            vis.init_visualisation(mesh);
+            problem_solved = true; loading_visual = true;
+        }
+    }
+}
+
+void MainWindow::DrawTabVisualisation() {
+    ImGui::Spacing();
+    if (!problem_solved) { ImGui::TextDisabled("Run solver first."); return; }
+    ImGui::Checkbox("Show Temperature Heatmap", &loading_visual);
+    ImGui::SliderFloat("Range Min", &vis.min_temp, -20, 100);
+    ImGui::SliderFloat("Range Max", &vis.max_temp, 0, 600);
+    ImGui::SliderInt("Current Step", &vis.current_step, 0, (int)vis.time_ids.size() - 1);
+    ImGui::Checkbox("Animation On", &auto_play);
+    if (auto_play) vis.current_step = (vis.current_step + 1) % vis.time_ids.size();
+    ImGui::Separator();
+    ImGui::Checkbox("Show Nodes", &display_nodes);
+    ImGui::Checkbox("Show Triangles", &display_triangles);
 }
