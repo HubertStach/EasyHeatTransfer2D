@@ -198,13 +198,30 @@ void MainWindow::Run() {
 
 void MainWindow::DrawTabMesh() {
     ImGui::Spacing();
-    if (ImGui::Button("Load .txt File", ImVec2(-1, 0))) { mesh.load_mesh_from_txt(); mesh_created = true; }
-    if (ImGui::Button("Load .inp File", ImVec2(-1, 0))) { load_inp_mesh(mesh); mesh.create_edges(); mesh_created = true; }
+    if (ImGui::Button("Load .txt File", ImVec2(-1, 0))) {
+        mesh.load_mesh_from_txt(); mesh_created = true;
+    }
+    if (ImGui::Button("Load .inp File", ImVec2(-1, 0))) {
+        load_inp_mesh(mesh); mesh.create_edges(); mesh_created = true;
+    }
     ImGui::Separator();
-    ImGui::Checkbox("Enable Point Placement (E)", &creatingMesh);
+    ImGui::Checkbox("Enable Point Placement", &creatingMesh);
     ImGui::TextDisabled("E: Place | Q: Remove last");
-    ImGui::SliderFloat("Node Spacing", &spacing, 0.1f, 5.0f);
-    if (ImGui::Button("GENERATE MESH", ImVec2(-1, 35))) { if (mesh.nodes.size() >= 3) { mesh_created = true; mesh.create_mesh(spacing); } }
+    ImGui::Text("Boundary node spacing");
+    ImGui::SliderFloat("##", &spacing, 0.1f, 5.0f);
+
+    ImGui::Text("Mesh alfa parameter");
+    ImGui::SliderFloat("alfa", &mesh_alfa, 0.1f, 2.0f);
+
+    ImGui::Text("Mesh beta parameter");
+    ImGui::SliderFloat("beta", &mesh_beta, 0.1f, 5.0f);
+
+    if (ImGui::Button("GENERATE MESH", ImVec2(-1, 35))) {
+        if (mesh.nodes.size() >= 3){
+            mesh_created = true;
+            mesh.create_mesh(spacing, mesh_alfa, mesh_beta);
+        }
+    }
     if (ImGui::Button("Clear All", ImVec2(-1, 0))) { mesh.nodes.clear(); mesh.edges.clear(); mesh_created = false; bc_edge_clicked = -1; }
 }
 
@@ -241,6 +258,23 @@ void MainWindow::DrawTabSolver() {
     else if (current_solver == 1) solver_type_str = "implicit_euler";
     else solver_type_str = "crank-nicolson";
 
+    ImGui::Separator();
+    ImGui::Text("Initial temperature");
+    ImGui::InputDouble("C", &configuration.init_temperature);
+
+    if (ImGui::CollapsingHeader("Material data")) {
+        ImGui::Text("Density");
+        ImGui::InputDouble("kg/m^3", &configuration.density);
+
+        ImGui::Text("Conductivity");
+        ImGui::InputDouble("W/m*K", &configuration.conductivity);
+
+
+        ImGui::Text("Specific heat");
+        ImGui::InputDouble("J/kg*K", &configuration.specific_heat);
+
+    }
+
     if (ImGui::Button("RUN SIMULATION", ImVec2(-1, 40))) {
         if (mesh_created) {
             save_fem_data(mesh, configuration);
@@ -256,8 +290,8 @@ void MainWindow::DrawTabVisualisation() {
     ImGui::Spacing();
     if (!problem_solved) { ImGui::TextDisabled("Run solver first."); return; }
     ImGui::Checkbox("Show Temperature Heatmap", &loading_visual);
-    ImGui::SliderFloat("Range Min", &vis.min_temp, -20, 100);
-    ImGui::SliderFloat("Range Max", &vis.max_temp, 0, 600);
+    ImGui::InputFloat("Range Min", &vis.min_temp);
+    ImGui::InputFloat("Range Max", &vis.max_temp);
     ImGui::SliderInt("Current Step", &vis.current_step, 0, (int)vis.time_ids.size() - 1);
     ImGui::Checkbox("Animation On", &auto_play);
     if (auto_play) vis.current_step = (vis.current_step + 1) % vis.time_ids.size();

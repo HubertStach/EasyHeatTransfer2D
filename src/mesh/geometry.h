@@ -83,12 +83,11 @@ namespace geo {
         static bool is_boundary_edge(std::vector<geo::Triangle> &triangles, geo::Edge edge);
         void triangulate();
         bool point_in_mesh(float x, float y);
-
-        void create_nodes_SH_LO(float spacing);
-        void create_nodes_2(float spacing);
-
-        void init_afm();
-        void create_mesh(float spacing);
+        void create_nodes(float alpha = 0.7f, float beta = 0.5f);
+        void remove_outside_triangles();
+        std::vector<geo::Edge> find_missing_bondaries();
+        void recreate_mising_triangles();
+        void create_mesh(float spacing, float alfa, float beta);
         
 
         //------Rysowanie siatki itd.------
