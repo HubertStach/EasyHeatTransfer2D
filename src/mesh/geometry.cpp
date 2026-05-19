@@ -837,7 +837,7 @@ void geo::Mesh::interpolate_bc_points(float spacing)
 
         float len = sqrt(pow(B.x-A.x,2) + pow(B.y-A.y,2));
 
-        int N = (int)(len/spacing);
+        int N = std::round(len/spacing);
         if (N < 1) N = 1;
 
         auto x_u = [&](float u) { return A.x + (B.x - A.x) * u; };
