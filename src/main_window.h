@@ -22,6 +22,8 @@ struct MainWindow {
     bool show_grid_bool = true;
     bool creatingMesh = false;
     float spacing = 1.0f;
+    float mesh_alfa = 0.7f;
+    float mesh_beta = 0.5f;
     bool mesh_created = false;
     bool problem_solved = false;
 

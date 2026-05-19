@@ -7,6 +7,7 @@
 #include <fstream>
 #include <iostream>
 #include <map>
+#include <set>
 #include <sstream>
 
 #include "rlgl.h"
@@ -836,7 +837,7 @@ void geo::Mesh::interpolate_bc_points(float spacing)
 
         float len = sqrt(pow(B.x-A.x,2) + pow(B.y-A.y,2));
 
-        int N = (int)(len/spacing);
+        int N = std::round(len/spacing);
         if (N < 1) N = 1;
 
         auto x_u = [&](float u) { return A.x + (B.x - A.x) * u; };
@@ -1122,162 +1123,208 @@ bool geo::Mesh::point_in_mesh(float x, float y) {
 }
 
 
-void geo::Mesh::create_nodes_SH_LO(float spacing) {
-    // -------------------------------------------------------
-    // generowanie punktów (wg S.H. Lo, 1985)
-
-    if (!this->nodes.empty()) {
-        float y_min = this->nodes[0].y;
-        float y_max = this->nodes[0].y;
-        for (const auto& n : this->nodes) {
-            if (n.y < y_min) y_min = n.y;
-            if (n.y > y_max) y_max = n.y;
-        }
-        float D = spacing;
-        float h_spacing = D * 0.866025f;
-        float min_dist_sq = (0.7f * D) * (0.7f * D);
-
-        bool stagger = false;
-
-        for (float H = y_min + h_spacing; H < y_max; H += h_spacing) {
-            std::vector<float> intersections;
-
-            for (const auto& edge : this->edges) {
-                const Node& p1 = this->nodes[edge.node_ids[0]];
-                const Node& p2 = this->nodes[edge.node_ids[1]];
-
-                if ((p1.y <= H && p2.y > H) || (p2.y <= H && p1.y > H)) {
-                    float t = (H - p1.y) / (p2.y - p1.y);
-                    float x_int = p1.x + t * (p2.x - p1.x);
-                    intersections.push_back(x_int);
-                }
-            }
-
-            std::sort(intersections.begin(), intersections.end());
-
-            for (size_t i = 0; i + 1 < intersections.size(); i += 2) {
-                float x_start = intersections[i];
-                float x_end = intersections[i+1];
-
-                float current_x = x_start + (stagger ? D * 0.5f : D);
-
-                while (current_x < x_end - (0.3f * D)) {
-                    float cand_x = current_x;
-                    float cand_y = H;
-
-                    bool valid = true;
-                    for (const auto& n : this->nodes) {
-                        float dist_sq = (n.x - cand_x) * (n.x - cand_x) + (n.y - cand_y) * (n.y - cand_y);
-                        if (dist_sq < min_dist_sq) {
-                            valid = false;
-                            break;
-                        }
-                    }
-
-                    if (valid) {
-                        this->nodes.emplace_back(cand_x, cand_y, false);
-                    }
-
-                    current_x += D;
-                }
-            }
-            stagger = !stagger;
-        }
-    }
-}
-
 //źródło algorytmu
 //Owen, Steven. (2000). A Survey of Unstructured Mesh Generation Technology. 7th International Meshing Roundtable. 3.
 // rodział 2.2.1 Point insertion
-void geo::Mesh::create_nodes_2(float spacing) {
-    //początkowa triangulacja
+void geo::Mesh::create_nodes(float alpha, float beta) {
+    // Krok 1 (z artykułu): Obliczenie funkcji dystrybucji punktów (dp_o) dla brzegu.
+    // Dystrybucja to średnia długość krawędzi połączonych z danym węzłem.
+    std::vector<float> dp(this->nodes.size(), 0.0f);
+    std::vector<int> edge_count(this->nodes.size(), 0);
+
+    for (const auto& edge : this->edges) {
+        int n1 = edge.node_ids[0];
+        int n2 = edge.node_ids[1];
+        float length = geo::len(this->nodes[n1], this->nodes[n2]);
+
+        dp[n1] += length;
+        dp[n2] += length;
+        edge_count[n1]++;
+        edge_count[n2]++;
+    }
+
+    // Wyciągnięcie średniej dla każdego węzła początkowego
+    for (size_t i = 0; i < this->nodes.size(); ++i) {
+        if (edge_count[i] > 0) {
+            dp[i] /= static_cast<float>(edge_count[i]);
+        } else {
+            dp[i] = 1.0f; // Zabezpieczenie (fallback), jeśli węzeł "wisi" w powietrzu
+        }
+    }
+
+    // Krok 2: Generacja początkowej triangulacji z punktów brzegowych
     this->triangulate();
 
-    //liczymy średnią wielkość trójkątów
-    float mean_size=0.0f;
-    float sum_size=0.0f;
-
-    for(geo::Triangle tr:triangles){
-        sum_size += tr_size(tr, this->nodes);
-    }
-    mean_size = sum_size/static_cast<int>(triangles.size());
-
-    constexpr float divider = (4.0f / 1.73205f);
-
-    int max_iter = 10;
+    // Główna pętla wstawiania punktów (Sweep)
+    bool points_added = true;
     int current_iter = 0;
-    while((std::sqrt(divider*mean_size) > spacing) && (current_iter < max_iter)){
+    int max_iter = 200; // Zabezpieczenie przed nieskończoną pętlą (na wypadek skrajnych ułamków)
+
+    while (points_added && current_iter < max_iter) {
+        points_added = false;
         current_iter++;
-        //std::cout<<"sqrt("<<divider<<"*"<<mean_size<<") = "<<std::sqrt(divider*mean_size)<<" <= " << spacing<<"\n";
 
-        sum_size=0.0f;
-        //liczymy srednia wielkosc trojkata
-        for(geo::Triangle tr:triangles){
-            sum_size += tr_size(tr, this->nodes);
-        }
-        mean_size = sum_size/static_cast<int>(triangles.size());
+        // Bufory na punkty zaakceptowane w TYM KONKRETNYM przejściu (Krok 3)
+        std::vector<geo::Node> new_nodes_this_sweep;
+        std::vector<float> new_dp_this_sweep;
 
+        // Krok 4: Pętla po wszystkich wygenerowanych trójkątach
+        for (const geo::Triangle& tr : this->triangles) {
+            int id1 = tr.node_ids[0];
+            int id2 = tr.node_ids[1];
+            int id3 = tr.node_ids[2];
 
-        //dodajemy nowe punkty
-        for(geo::Triangle &tr:this->triangles){
+            geo::Node n1 = this->nodes[id1];
+            geo::Node n2 = this->nodes[id2];
+            geo::Node n3 = this->nodes[id3];
 
-            if(tr_size(tr, this->nodes) > mean_size){
+            // Krok 4a: Definicja potencjalnego punktu Q (Środek ciężkości)
+            float cx = (n1.x + n2.x + n3.x) / 3.0f;
+            float cy = (n1.y + n2.y + n3.y) / 3.0f;
 
-                float x_p = (this->nodes[tr.node_ids[0]].x +this->nodes[tr.node_ids[1]].x+this->nodes[tr.node_ids[2]].x) /3;
-                float y_p = (this->nodes[tr.node_ids[0]].y +this->nodes[tr.node_ids[1]].y+this->nodes[tr.node_ids[2]].y) /3;
+            // Upewniamy się, że punkt znajduje się fizycznie wewnątrz naszej figury
+            if (!this->point_in_mesh(cx, cy)) {
+                continue;
+            }
 
-                if (point_in_mesh(x_p, y_p)) {
-                    geo::Node center(x_p, y_p, false);
-                    this->nodes.push_back(center);
+            geo::Node Q(cx, cy, false);
+
+            // Krok 4b: Interpolacja gęstości dp_Q z węzłów trójkąta (średnia arytmetyczna z 3 punktów)
+            float dp_Q = (dp[id1] + dp[id2] + dp[id3]) / 3.0f;
+
+            // Krok 4c: TEST ALFA (Odległość od Q do wierzchołków jego własnego trójkąta)
+            float d1 = geo::len(Q, n1);
+            float d2 = geo::len(Q, n2);
+            float d3 = geo::len(Q, n3);
+
+            // Jeśli punkt jest zbyt blisko KTÓREGOKOLWIEK z istniejących wierzchołków trójkąta -> odrzuć
+            if (d1 < alpha * dp_Q || d2 < alpha * dp_Q || d3 < alpha * dp_Q) {
+                continue;
+            }
+
+            // Krok 4c: TEST BETA (Strefa wykluczenia dla innych punktów dodawanych w TEJ SAMEJ iteracji)
+            bool rejected_by_beta = false;
+            for (size_t j = 0; j < new_nodes_this_sweep.size(); ++j) {
+                float dist_to_Pj = geo::len(Q, new_nodes_this_sweep[j]);
+
+                // Jeśli nowy punkt leży w promieniu ochronnym innego nowo-zaproponowanego punktu -> odrzuć
+                if (dist_to_Pj < beta * dp_Q) {
+                    rejected_by_beta = true;
+                    break;
                 }
             }
 
+            if (rejected_by_beta) {
+                continue;
+            }
+
+            // Krok 4d: Akceptacja punktu
+            new_nodes_this_sweep.push_back(Q);
+            new_dp_this_sweep.push_back(dp_Q); // Zachowujemy jego "skalę" dla przyszłych generacji
+            points_added = true;
         }
 
-        this->triangulate();
-        //std::cout<<mean_size<<'\n';
+        // Krok 5 i 6: Dodanie nowych węzłów do globalnej listy i retriangulacja Delaunaya
+        if (points_added) {
+            for (size_t i = 0; i < new_nodes_this_sweep.size(); ++i) {
+                this->nodes.push_back(new_nodes_this_sweep[i]);
+                dp.push_back(new_dp_this_sweep[i]);
+            }
+
+            this->triangulate();
+        }
     }
 }
 
-void geo::Mesh::init_afm() {
-    std::vector<std::pair<double, double>> allPoints;
-    std::vector<int> bc_node_ids;
+void geo::Mesh::remove_outside_triangles() {
+    std::vector<Triangle> kept;
 
-    allPoints.reserve(this->nodes.size());
-    for (const auto& n : this->nodes) {
-        allPoints.emplace_back( static_cast<double>(n.x), static_cast<double>(n.y) );
+    for (const auto& tr : triangles) {
+        double cx = (nodes[tr.node_ids[0]].x + nodes[tr.node_ids[1]].x + nodes[tr.node_ids[2]].x) / 3.0;
+        double cy = (nodes[tr.node_ids[0]].y + nodes[tr.node_ids[1]].y + nodes[tr.node_ids[2]].y) / 3.0;
+
+        if (this->point_in_mesh(cx, cy)) {
+            kept.push_back(tr);
+        }
     }
 
-    int num_bc_nodes = this->edges.size();
-    bc_node_ids.reserve(num_bc_nodes);
-    for (int i = 0; i < num_bc_nodes; i++) {
-        bc_node_ids.push_back(i);
-    }
-
-    //jeżeli pole ujemnie to punkty nie idą CCW
-    double signed_area = 0.0;
-    for (int i = 0; i < num_bc_nodes; i++) {
-        int next = (i + 1) % num_bc_nodes;
-        double x1 = allPoints[bc_node_ids[i]].first;
-        double y1 = allPoints[bc_node_ids[i]].second;
-        double x2 = allPoints[bc_node_ids[next]].first;
-        double y2 = allPoints[bc_node_ids[next]].second;
-        signed_area += (x1 * y2 - x2 * y1);
-    }
-
-    if (signed_area > 0) {
-        std::reverse(bc_node_ids.begin(), bc_node_ids.end());
-    }
-
-    if (this->afm != nullptr) {
-        delete this->afm;
-        this->afm = nullptr;
-    }
-
-    this->afm = new AdvancingFront(allPoints, bc_node_ids);
+    this->triangles = kept;
 }
 
-void geo::Mesh::create_mesh(float spacing)
+std::vector<geo::Edge> geo::Mesh::find_missing_bondaries() {
+    struct SortedEdge {
+        int a, b;
+        SortedEdge(int n1, int n2) {
+            a = std::min(n1, n2);
+            b = std::max(n1, n2);
+        }
+        // Operator potrzebny dla std::set
+        bool operator<(const SortedEdge& other) const {
+            if (a != other.a) return a < other.a;
+            return b < other.b;
+        }
+    };
+
+    std::set<SortedEdge> existing_edges;
+    std::vector<Edge> omited_edges;
+
+    for (const auto& tr : this->triangles) {
+        existing_edges.insert(SortedEdge(tr.node_ids[0], tr.node_ids[1]));
+        existing_edges.insert(SortedEdge(tr.node_ids[1], tr.node_ids[2]));
+        existing_edges.insert(SortedEdge(tr.node_ids[2], tr.node_ids[0]));
+    }
+
+    for (const auto& boundary_edge : this->edges) {
+        SortedEdge search_edge(boundary_edge.node_ids[0], boundary_edge.node_ids[1]);
+
+        if (existing_edges.find(search_edge) == existing_edges.end()) {
+            omited_edges.push_back(boundary_edge);
+        }
+    }
+
+    return omited_edges;
+}
+
+void geo::Mesh::recreate_mising_triangles() {
+    std::vector<Edge> missing = this->find_missing_bondaries();
+    std::vector<Triangle> recreated_tr;
+
+    for (auto& missing_edge : missing) {
+        int n1 = missing_edge.node_ids[0];
+        int n2 = missing_edge.node_ids[1];
+
+        float mid_x = (nodes[n1].x + nodes[n2].x) / 2.0f;
+        float mid_y = (nodes[n1].y + nodes[n2].y) / 2.0f;
+
+        int best_n3 = -1;
+        float min_dist_sq = 1e15f;
+
+        for (int i = 0; i < (int)nodes.size(); i++) {
+            if (i == n1 || i == n2) continue;
+
+            float d_sq = distSq(mid_x, mid_y, nodes[i].x, nodes[i].y);
+
+            if (d_sq < min_dist_sq) {
+                float ctx = (nodes[n1].x + nodes[n2].x + nodes[i].x) / 3.0f;
+                float cty = (nodes[n1].y + nodes[n2].y + nodes[i].y) / 3.0f;
+
+                if (this->point_in_mesh(ctx, cty)) {
+                    min_dist_sq = d_sq;
+                    best_n3 = i;
+                }
+            }
+        }
+
+        if (best_n3 != -1) {
+            recreated_tr.emplace_back(n1, n2, best_n3);
+        }
+    }
+    for (auto& tr : recreated_tr) {
+        this->triangles.push_back(tr);
+    }
+}
+
+void geo::Mesh::create_mesh(float spacing, float alfa, float beta)
 {
     // 1. Czyszczenie starych danych
     if(this->mesh_created){
@@ -1291,23 +1338,14 @@ void geo::Mesh::create_mesh(float spacing)
         this->initial_edges = this->edges;
     }
 
-    // 2. Interpolujemy punkty na brzegach
     this->interpolate_bc_points(spacing);
-    // 3. Generujemy punkty wewnątrz (wg S.H. Lo, 1985)
-    //this->create_nodes_SH_LO(spacing);
-    this->create_nodes_2(spacing);
-    // 4. Inicjowanie frontu
-    this->init_afm();
-    // 5. Uruchomienie frontu
-    this->afm->collapse();
 
-    // 6. Przepisanie trójkątów z frontu na trójkąty siatki
-    this->triangles.clear();
-    const auto& generated_triangles = this->afm->getTriangles();
+    this->create_nodes(alfa, beta);
 
-    for (const auto& tr : generated_triangles) {
-        this->triangles.emplace_back(tr.p1, tr.p2, tr.p3);
-    }
+    this->remove_outside_triangles();
+
+    this->recreate_mising_triangles();
+
     this->mesh_created = true;
 }
 
