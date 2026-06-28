@@ -181,8 +181,10 @@ namespace Fem{
 
         std::string solver_type;
 
-        double x_char = 100.0; //shortest edge in mesh -> characteristic for CFL number in explicit Euler
+        double x_char = 1000.0; //shortest edge in mesh -> characteristic for CFL number in explicit Euler
         void calc_x_char();
+
+        void apply_dirichlet_symmetric(Matrix &A, std::vector<double> &B);
 
         explicit Solution(std::string filename, const std::string& solver_type): Global_H(3,3), Global_C(3,3), Global_P(3,1)
         {

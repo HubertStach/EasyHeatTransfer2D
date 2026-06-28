@@ -283,7 +283,8 @@ void MainWindow::DrawTabSolver() {
             std::thread fem_thread(fem_solve, solver_type_str);
             fem_thread.join();
             vis.init_visualisation(mesh);
-            problem_solved = true; loading_visual = true;
+            problem_solved = true;
+            loading_visual = true;
         }
     }
 }
