@@ -8,7 +8,6 @@
 #include <algorithm>
 
 #include "mes.h"
-#include "../solver/gauss.h"
 #include "../solver/cholesky_ldl.h"
 
 namespace Fem {
@@ -71,7 +70,6 @@ namespace Fem {
         x3 = nodes[this->node_ids[2]].x;
         y3 = nodes[this->node_ids[2]].y;
 
-
         return ((y1-y2)/(((x2-x1)*(y3-y1))-((x3-x1)*(y2-y1))));
     }
 
@@ -84,7 +82,6 @@ namespace Fem {
         y2 = nodes[this->node_ids[1]].y;
         x3 = nodes[this->node_ids[2]].x;
         y3 = nodes[this->node_ids[2]].y;
-
 
         return ((x3-x2)/(((x2-x1)*(y3-y1))-((x3-x1)*(y2-y1))));
     }
@@ -99,7 +96,6 @@ namespace Fem {
         x3 = nodes[this->node_ids[2]].x;
         y3 = nodes[this->node_ids[2]].y;
 
-
         return ((x1-x3)/(((x2-x1)*(y3-y1))-((x3-x1)*(y2-y1))));
     }
 
@@ -112,7 +108,6 @@ namespace Fem {
         y2 = nodes[this->node_ids[1]].y;
         x3 = nodes[this->node_ids[2]].x;
         y3 = nodes[this->node_ids[2]].y;
-
 
         return ((x2-x1)/(((x2-x1)*(y3-y1))-((x3-x1)*(y2-y1))));
     }
@@ -144,31 +139,29 @@ namespace Fem {
 
     Matrix Quad::jacobian_mat(Quad &element, std::vector<Node> &nodes, double pc_xi, double pc_eta)
     {
-        Matrix jacobian(2,2);
+        Matrix jacobian = Matrix::Zero(2,2);
 
-        jacobian[0][0] = dN1dxi_q(pc_eta)*nodes[element.node_ids[0]].x+Fem::dN2dxi_q(pc_eta)*nodes[element.node_ids[1]].x+Fem::dN3dxi_q(pc_eta)*nodes[element.node_ids[2]].x+Fem::dN4dxi_q(pc_eta)*nodes[element.node_ids[3]].x; //dxdxi
-        jacobian[0][1] = dN1dxi_q(pc_eta)*nodes[element.node_ids[0]].y+Fem::dN2dxi_q(pc_eta)*nodes[element.node_ids[1]].y+Fem::dN3dxi_q(pc_eta)*nodes[element.node_ids[2]].y+Fem::dN4dxi_q(pc_eta)*nodes[element.node_ids[3]].y; //dydxi
-        jacobian[1][0] = dN1deta_q(pc_xi)*nodes[element.node_ids[0]].x+Fem::dN2deta_q(pc_xi)*nodes[element.node_ids[1]].x+Fem::dN3deta_q(pc_xi)*nodes[element.node_ids[2]].x+Fem::dN4deta_q(pc_xi)*nodes[element.node_ids[3]].x; //dxdeta
-        jacobian[1][1] = dN1deta_q(pc_xi)*nodes[element.node_ids[0]].y+Fem::dN2deta_q(pc_xi)*nodes[element.node_ids[1]].y+Fem::dN3deta_q(pc_xi)*nodes[element.node_ids[2]].y+Fem::dN4deta_q(pc_xi)*nodes[element.node_ids[3]].y; //dydeta
-
-        //std::cout<<Fem::dN1deta(pc_xi)<<"*"<<nodes[element.node_ids[0]-1].x<<"+"<<Fem::dN1deta(pc_xi)<<"*"<<nodes[element.node_ids[1]-1].x<<"+"<<Fem::dN1deta(pc_xi)<<"*"<<nodes[element.node_ids[2]-1].x<<"+"<<Fem::dN1deta(pc_xi)<<"*"<<nodes[element.node_ids[3]-1].x<<"\n";
+        jacobian(0,0) = dN1dxi_q(pc_eta)*nodes[element.node_ids[0]].x+Fem::dN2dxi_q(pc_eta)*nodes[element.node_ids[1]].x+Fem::dN3dxi_q(pc_eta)*nodes[element.node_ids[2]].x+Fem::dN4dxi_q(pc_eta)*nodes[element.node_ids[3]].x;
+        jacobian(0,1) = dN1dxi_q(pc_eta)*nodes[element.node_ids[0]].y+Fem::dN2dxi_q(pc_eta)*nodes[element.node_ids[1]].y+Fem::dN3dxi_q(pc_eta)*nodes[element.node_ids[2]].y+Fem::dN4dxi_q(pc_eta)*nodes[element.node_ids[3]].y;
+        jacobian(1,0) = dN1deta_q(pc_xi)*nodes[element.node_ids[0]].x+Fem::dN2deta_q(pc_xi)*nodes[element.node_ids[1]].x+Fem::dN3deta_q(pc_xi)*nodes[element.node_ids[2]].x+Fem::dN4deta_q(pc_xi)*nodes[element.node_ids[3]].x;
+        jacobian(1,1) = dN1deta_q(pc_xi)*nodes[element.node_ids[0]].y+Fem::dN2deta_q(pc_xi)*nodes[element.node_ids[1]].y+Fem::dN3deta_q(pc_xi)*nodes[element.node_ids[2]].y+Fem::dN4deta_q(pc_xi)*nodes[element.node_ids[3]].y;
 
         return jacobian;
     }
 
     double Quad::det_jacobian(Fem::Matrix jacobian_mat)
     {
-        return jacobian_mat[0][0]*jacobian_mat[1][1] - jacobian_mat[1][0]*jacobian_mat[0][1];
+        return jacobian_mat(0,0)*jacobian_mat(1,1) - jacobian_mat(1,0)*jacobian_mat(0,1);
     }
 
     Matrix Quad::inv_jacobian_mat(Fem::Matrix jacobian_mat)
     {
-        Fem::Matrix inv_jacobian(2,2);
+        Fem::Matrix inv_jacobian = Matrix::Zero(2,2);
         double det_J = this->det_jacobian(jacobian_mat);
-        inv_jacobian[0][0] = jacobian_mat[1][1]/det_J;
-        inv_jacobian[0][1] = -jacobian_mat[0][1]/det_J;
-        inv_jacobian[1][0] = -jacobian_mat[1][0]/det_J;
-        inv_jacobian[1][1] = jacobian_mat[0][0]/det_J;
+        inv_jacobian(0,0) = jacobian_mat(1,1)/det_J;
+        inv_jacobian(0,1) = -jacobian_mat(0,1)/det_J;
+        inv_jacobian(1,0) = -jacobian_mat(1,0)/det_J;
+        inv_jacobian(1,1) = jacobian_mat(0,0)/det_J;
 
         return inv_jacobian;
     }
@@ -192,7 +185,7 @@ namespace Fem {
                 node_selection = true;
                 continue;
             }
-            
+
             if (line == "*Triangles" || line == "*BC" || line == "*Quads") {
                 node_selection = false;
             }
@@ -231,7 +224,7 @@ namespace Fem {
                 element_selection = true;
                 continue;
             }
-            
+
             if (line == "*Nodes" || line == "*BC" || line == "*Quads") {
                 element_selection = false;
             }
@@ -359,7 +352,7 @@ namespace Fem {
                     nodes[node_id].bc = temp_bc;
                 }
                 else {
-                    std::cout << "Failed to parse line: " << line << "\n"; // Debug output
+                    std::cout << "Failed to parse line: " << line << "\n";
                 }
             }
         }
@@ -368,7 +361,6 @@ namespace Fem {
         return nodes;
     }
 
-    //prints current configuration from file
     void print_config(GlobalData configuration)
     {
         std::cout<<"-----------------Configuration-----------------\n";
@@ -391,14 +383,15 @@ namespace Fem {
 
     Matrix calc_local_H_tr(Triangle &local_el, std::vector<Node> &nodes, const double conductivity)
     {
-        Matrix dNdx(3,1), dNdy(3,1);
+        Matrix dNdx = Matrix::Zero(3,1);
+        Matrix dNdy = Matrix::Zero(3,1);
 
-        dNdx[0][0] = local_el.dN1dx_tr(nodes);
-        dNdx[1][0] = local_el.dN2dx_tr(nodes);
-        dNdx[2][0] = local_el.dN3dx_tr(nodes);
-        dNdy[0][0] = local_el.dN1dy_tr(nodes);
-        dNdy[1][0] = local_el.dN2dy_tr(nodes);
-        dNdy[2][0] = local_el.dN3dy_tr(nodes);
+        dNdx(0,0) = local_el.dN1dx_tr(nodes);
+        dNdx(1,0) = local_el.dN2dx_tr(nodes);
+        dNdx(2,0) = local_el.dN3dx_tr(nodes);
+        dNdy(0,0) = local_el.dN1dy_tr(nodes);
+        dNdy(1,0) = local_el.dN2dy_tr(nodes);
+        dNdy(2,0) = local_el.dN3dy_tr(nodes);
 
         double x1 = nodes[local_el.node_ids[0]].x;
         double y1 = nodes[local_el.node_ids[0]].y;
@@ -410,22 +403,16 @@ namespace Fem {
         double D = (x2-x1)*(y3-y1) - (x3-x1)*(y2-y1);
         double Area = std::abs(D) / 2.0f;
 
-        Matrix H_local = (dNdx*dNdx.transpose()) + (dNdy*dNdy.transpose());
-
-        for(int i=0; i<3; ++i) {
-            for(int j=0; j<3; ++j) {
-                H_local[i][j] *= conductivity * Area;
-            }
-        }
+        Matrix H_local = ((dNdx*dNdx.transpose()) + (dNdy*dNdy.transpose())) * (conductivity * Area);
 
         return H_local;
     }
 
     Matrix calc_local_Hbc_tr(Triangle &local_el, std::vector<Node> &nodes)
     {
-        Matrix Hbc(3, 3);
+        Matrix Hbc = Matrix::Zero(3, 3);
 
-        for (int i = 0; i < 3; i++) { // pętla po bokach trójkąta
+        for (int i = 0; i < 3; i++) {
             int id1 = local_el.node_ids[i];
             int id2 = local_el.node_ids[(i + 1) % 3];
 
@@ -436,19 +423,13 @@ namespace Fem {
 
             for (int pc=0; pc<2; ++pc) {
                 const int pc_aktualny = i*2+pc;
-                Matrix Ns(3,1);
+                Matrix Ns = Matrix::Zero(3,1);
 
-                Ns[0][0] = N1_tr(bc_pc_xi_tr[pc_aktualny], bc_pc_eta_tr[pc_aktualny]);
-                Ns[1][0] = N2_tr(bc_pc_xi_tr[pc_aktualny], bc_pc_eta_tr[pc_aktualny]);
-                Ns[2][0] = N3_tr(bc_pc_xi_tr[pc_aktualny], bc_pc_eta_tr[pc_aktualny]);
+                Ns(0,0) = N1_tr(bc_pc_xi_tr[pc_aktualny], bc_pc_eta_tr[pc_aktualny]);
+                Ns(1,0) = N2_tr(bc_pc_xi_tr[pc_aktualny], bc_pc_eta_tr[pc_aktualny]);
+                Ns(2,0) = N3_tr(bc_pc_xi_tr[pc_aktualny], bc_pc_eta_tr[pc_aktualny]);
 
-                Matrix BTB = Ns*Ns.transpose();
-
-                for (int row=0; row<3; ++row) {
-                    for (int col=0; col<3; ++col) {
-                        Hbc[row][col] += BTB[row][col]*bc_pc_w_tr[pc_aktualny]*detJ*alfa;
-                    }
-                }
+                Hbc += (Ns*Ns.transpose()) * (bc_pc_w_tr[pc_aktualny]*detJ*alfa);
             }
         }
 
@@ -457,9 +438,9 @@ namespace Fem {
 
     Matrix calc_p_vec_tr(const Triangle &local_el, const std::vector<Node> &nodes)
     {
-        Matrix p_vec(3, 1);
+        Matrix p_vec = Matrix::Zero(3, 1);
 
-        for (int i = 0; i < 3; i++) { // pętla po bokach trójkąta
+        for (int i = 0; i < 3; i++) {
             const int id1 = local_el.node_ids[i];
             const int id2 = local_el.node_ids[(i + 1) % 3];
 
@@ -467,36 +448,32 @@ namespace Fem {
 
             const double detJ = 0.5f*dist(nodes[id1], nodes[id2]);
 
-            //W.B. Neumanna
             const double flux = nodes[id1].bc.flux;
 
-            //W.B. Robina
             const double alfa = nodes[id1].bc.alfa;
             const double t_ext = nodes[id2].bc.t_ext;
 
-            Matrix pvec_edge(3,1);
+            Matrix pvec_edge = Matrix::Zero(3,1);
 
             for (int pc=0; pc<2; ++pc) {
                 int pc_aktualny = i*2+pc;
-                Matrix Ns(3,1);
+                Matrix Ns = Matrix::Zero(3,1);
 
-                Ns[0][0] = N1_tr(bc_pc_xi_tr[pc_aktualny], bc_pc_eta_tr[pc_aktualny]);
-                Ns[1][0] = N2_tr(bc_pc_xi_tr[pc_aktualny], bc_pc_eta_tr[pc_aktualny]);
-                Ns[2][0] = N3_tr(bc_pc_xi_tr[pc_aktualny], bc_pc_eta_tr[pc_aktualny]);
+                Ns(0,0) = N1_tr(bc_pc_xi_tr[pc_aktualny], bc_pc_eta_tr[pc_aktualny]);
+                Ns(1,0) = N2_tr(bc_pc_xi_tr[pc_aktualny], bc_pc_eta_tr[pc_aktualny]);
+                Ns(2,0) = N3_tr(bc_pc_xi_tr[pc_aktualny], bc_pc_eta_tr[pc_aktualny]);
 
                 for (int j=0; j<3; ++j) {
-                    pvec_edge[j][0] += Ns[j][0]*bc_pc_w_tr[pc_aktualny];
+                    pvec_edge(j,0) += Ns(j,0)*bc_pc_w_tr[pc_aktualny];
                 }
             }
 
-            //Warunek brzegowy Robina
             for (int k =0; k<3; ++k) {
-                p_vec[k][0] += pvec_edge[k][0]*alfa*detJ*t_ext;
+                p_vec(k,0) += pvec_edge(k,0)*alfa*detJ*t_ext;
             }
 
-            //Warunek brzegowy Neumanna
             for (int k=0; k<3; ++k) {
-                p_vec[k][0] += pvec_edge[k][0]*detJ*flux;
+                p_vec(k,0) += pvec_edge(k,0)*detJ*flux;
             }
         }
 
@@ -505,7 +482,7 @@ namespace Fem {
 
     Matrix calc_c_tr(const Triangle &local_el, const std::vector<Node> &nodes, const double density, const double specific_heat, const int c_lump=0)
     {
-        Matrix c_matrix(3, 3);
+        Matrix c_matrix = Matrix::Zero(3, 3);
 
         const double x1 = nodes[local_el.node_ids[0]].x;
         const double y1 = nodes[local_el.node_ids[0]].y;
@@ -518,31 +495,19 @@ namespace Fem {
         detJ = std::abs(detJ);
 
         for (int pc =0; pc<3; ++pc) {
-            Matrix Ns(3,1);
-            Ns[0][0] = N1_tr(pc_xi_tr[pc], pc_eta_tr[pc]);
-            Ns[1][0] = N2_tr(pc_xi_tr[pc], pc_eta_tr[pc]);
-            Ns[2][0] = N3_tr(pc_xi_tr[pc], pc_eta_tr[pc]);
+            Matrix Ns = Matrix::Zero(3,1);
+            Ns(0,0) = N1_tr(pc_xi_tr[pc], pc_eta_tr[pc]);
+            Ns(1,0) = N2_tr(pc_xi_tr[pc], pc_eta_tr[pc]);
+            Ns(2,0) = N3_tr(pc_xi_tr[pc], pc_eta_tr[pc]);
 
-            Matrix BTB = Ns*Ns.transpose();
-
-            for (int i=0; i<3; ++i) {
-                for (int j=0; j<3; ++j) {
-                    c_matrix[i][j] += BTB[i][j]*pc_w_tr[pc]*density*specific_heat*detJ;
-                }
-            }
+            c_matrix += (Ns*Ns.transpose()) * (pc_w_tr[pc]*density*specific_heat*detJ);
         }
 
-        //dla explicit euler robimy macierz C zlepioną, inne metody tego nie portzebują
         if (c_lump == 1) {
-            Matrix c_lumped(3, 3);
+            Matrix c_lumped = Matrix::Zero(3, 3);
             for(int i=0; i<3; ++i) {
-                double sum_row = 0.0f;
-                for(int j=0; j<3; ++j) {
-                    sum_row += c_matrix[i][j];
-                }
-                c_lumped[i][i] = sum_row;
+                c_lumped(i,i) = c_matrix.row(i).sum();
             }
-
             c_matrix = c_lumped;
         }
 
@@ -554,7 +519,7 @@ namespace Fem {
             for(int j=0; j<3;j++){
                 const int glob_i = element.node_ids[i];
                 const int glob_j = element.node_ids[j];
-                Global[glob_i][glob_j] += Local[i][j]; 
+                Global(glob_i,glob_j) += Local(i,j);
             }
         }
     }
@@ -562,49 +527,34 @@ namespace Fem {
     void aggregate_p_vec_tr(Matrix &P_vec, const Triangle& element, Matrix &Local){
         for(int i=0; i<3; i++){
             const int glob_i = element.node_ids[i];
-            P_vec[glob_i][0] += Local[i][0];
-
+            P_vec(glob_i,0) += Local(i,0);
         }
     }
 
     Matrix calc_local_H_q(Fem::Quad &element, std::vector<Fem::Node> &nodes, double conductivity)
     {
-        Fem::Matrix H(4,4);
+        Fem::Matrix H = Matrix::Zero(4,4);
 
         for(int i=0; i<4; i++){
-            Fem::Matrix H_local(4,4);
             Fem::Matrix jacob = element.jacobian_mat(element, nodes, Fem::pc_xi_q[i], Fem::pc_eta_q[i]);
             double det_J = element.det_jacobian(jacob);
 
             Fem::Matrix inv_jacob = element.inv_jacobian_mat(jacob);
 
-            Fem::Matrix dNdx(4,1);
-            Fem::Matrix dNdy(4,1);
+            Fem::Matrix dNdx = Matrix::Zero(4,1);
+            Fem::Matrix dNdy = Matrix::Zero(4,1);
 
-            dNdx[0][0] = inv_jacob[0][0]*Fem::dN1dxi_q(Fem::pc_eta_q[i]) + inv_jacob[0][1]*Fem::dN1deta_q(Fem::pc_xi_q[i]);
-            dNdx[1][0] = inv_jacob[0][0]*Fem::dN2dxi_q(Fem::pc_eta_q[i]) + inv_jacob[0][1]*Fem::dN2deta_q(Fem::pc_xi_q[i]);
-            dNdx[2][0] = inv_jacob[0][0]*Fem::dN3dxi_q(Fem::pc_eta_q[i]) + inv_jacob[0][1]*Fem::dN3deta_q(Fem::pc_xi_q[i]);
-            dNdx[3][0] = inv_jacob[0][0]*Fem::dN4dxi_q(Fem::pc_eta_q[i]) + inv_jacob[0][1]*Fem::dN4deta_q(Fem::pc_xi_q[i]);
+            dNdx(0,0) = inv_jacob(0,0)*Fem::dN1dxi_q(Fem::pc_eta_q[i]) + inv_jacob(0,1)*Fem::dN1deta_q(Fem::pc_xi_q[i]);
+            dNdx(1,0) = inv_jacob(0,0)*Fem::dN2dxi_q(Fem::pc_eta_q[i]) + inv_jacob(0,1)*Fem::dN2deta_q(Fem::pc_xi_q[i]);
+            dNdx(2,0) = inv_jacob(0,0)*Fem::dN3dxi_q(Fem::pc_eta_q[i]) + inv_jacob(0,1)*Fem::dN3deta_q(Fem::pc_xi_q[i]);
+            dNdx(3,0) = inv_jacob(0,0)*Fem::dN4dxi_q(Fem::pc_eta_q[i]) + inv_jacob(0,1)*Fem::dN4deta_q(Fem::pc_xi_q[i]);
 
-            dNdy[0][0] = inv_jacob[1][0]*Fem::dN1dxi_q(Fem::pc_eta_q[i]) + inv_jacob[1][1]*Fem::dN1deta_q(Fem::pc_xi_q[i]);
-            dNdy[1][0] = inv_jacob[1][0]*Fem::dN2dxi_q(Fem::pc_eta_q[i]) + inv_jacob[1][1]*Fem::dN2deta_q(Fem::pc_xi_q[i]);
-            dNdy[2][0] = inv_jacob[1][0]*Fem::dN3dxi_q(Fem::pc_eta_q[i]) + inv_jacob[1][1]*Fem::dN3deta_q(Fem::pc_xi_q[i]);
-            dNdy[3][0] = inv_jacob[1][0]*Fem::dN4dxi_q(Fem::pc_eta_q[i]) + inv_jacob[1][1]*Fem::dN4deta_q(Fem::pc_xi_q[i]);
+            dNdy(0,0) = inv_jacob(1,0)*Fem::dN1dxi_q(Fem::pc_eta_q[i]) + inv_jacob(1,1)*Fem::dN1deta_q(Fem::pc_xi_q[i]);
+            dNdy(1,0) = inv_jacob(1,0)*Fem::dN2dxi_q(Fem::pc_eta_q[i]) + inv_jacob(1,1)*Fem::dN2deta_q(Fem::pc_xi_q[i]);
+            dNdy(2,0) = inv_jacob(1,0)*Fem::dN3dxi_q(Fem::pc_eta_q[i]) + inv_jacob(1,1)*Fem::dN3deta_q(Fem::pc_xi_q[i]);
+            dNdy(3,0) = inv_jacob(1,0)*Fem::dN4dxi_q(Fem::pc_eta_q[i]) + inv_jacob(1,1)*Fem::dN4deta_q(Fem::pc_xi_q[i]);
 
-            Fem::Matrix Bx = dNdx*dNdx.transpose();
-            Fem::Matrix By = dNdy*dNdy.transpose();
-
-            for(int row=0; row<4; row++){
-                for(int col=0; col<4; col++){
-                    H_local[row][col] = (Bx[row][col] + By[row][col])*conductivity*det_J;
-                }
-            }
-
-            for(int row=0; row<4; row++){
-                for(int col=0; col<4; col++){
-                    H[row][col] += H_local[row][col]*Fem::pc_weights_q[i];
-                }
-            }
+            H += ((dNdx*dNdx.transpose()) + (dNdy*dNdy.transpose())) * (conductivity*det_J*Fem::pc_weights_q[i]);
         }
 
         return H;
@@ -612,10 +562,10 @@ namespace Fem {
 
     Matrix calc_local_Hbc_q(Fem::Quad &element, std::vector<Fem::Node> &nodes)
     {
-        Fem::Matrix H_bc(4,4);
+        Fem::Matrix H_bc = Matrix::Zero(4,4);
 
         for(int edge=0; edge<4; edge++){
-            Fem::Matrix Hbc_edge(4,4);
+            Fem::Matrix Hbc_edge = Matrix::Zero(4,4);
             int id1 = element.node_ids[edge];
             int id2 = element.node_ids[(edge+1)%4];
 
@@ -623,33 +573,23 @@ namespace Fem {
                 continue;
             }
 
-            double alfa = nodes[id1].bc.alfa; //alfa z W.B. Robina
+            double alfa = nodes[id1].bc.alfa;
 
             double det_J = 0.5*dist(nodes[id1], nodes[id2]);
 
             for(int pc=0; pc<2; pc++){
                 int pc_on_egde = edge*2+pc;
-                Fem::Matrix Ns(4,1);
+                Fem::Matrix Ns = Matrix::Zero(4,1);
 
-                Ns[0][0] = Fem::N1_q(Fem::bc_xi_q[pc_on_egde], Fem::bc_eta_q[pc_on_egde]);
-                Ns[1][0] = Fem::N2_q(Fem::bc_xi_q[pc_on_egde], Fem::bc_eta_q[pc_on_egde]);
-                Ns[2][0] = Fem::N3_q(Fem::bc_xi_q[pc_on_egde], Fem::bc_eta_q[pc_on_egde]);
-                Ns[3][0] = Fem::N4_q(Fem::bc_xi_q[pc_on_egde], Fem::bc_eta_q[pc_on_egde]);
+                Ns(0,0) = Fem::N1_q(Fem::bc_xi_q[pc_on_egde], Fem::bc_eta_q[pc_on_egde]);
+                Ns(1,0) = Fem::N2_q(Fem::bc_xi_q[pc_on_egde], Fem::bc_eta_q[pc_on_egde]);
+                Ns(2,0) = Fem::N3_q(Fem::bc_xi_q[pc_on_egde], Fem::bc_eta_q[pc_on_egde]);
+                Ns(3,0) = Fem::N4_q(Fem::bc_xi_q[pc_on_egde], Fem::bc_eta_q[pc_on_egde]);
 
-                Fem::Matrix BTB = Ns*Ns.transpose();
-
-                for(int i=0; i<4;i++){
-                    for(int j=0; j<4; j++){
-                        Hbc_edge[i][j] += BTB[i][j]*Fem::bc_weights_q[pc_on_egde];
-                    }
-                }
+                Hbc_edge += (Ns*Ns.transpose()) * Fem::bc_weights_q[pc_on_egde];
             }
 
-            for(int i=0; i<4;i++){
-                for(int j=0; j<4; j++){
-                    H_bc[i][j] += Hbc_edge[i][j]*det_J*alfa;
-                }
-            }
+            H_bc += Hbc_edge * (det_J*alfa);
         }
 
         return H_bc;
@@ -657,10 +597,10 @@ namespace Fem {
 
     Matrix calc_P_q(Fem::Quad &element, std::vector<Fem::Node> &nodes)
     {
-        Fem::Matrix p_vec(4,1);
+        Fem::Matrix p_vec = Matrix::Zero(4,1);
 
         for(int edge=0; edge<4; edge++){
-            Fem::Matrix P_edge(4,1);
+            Fem::Matrix P_edge = Matrix::Zero(4,1);
             int id1 = element.node_ids[edge];
             int id2 = element.node_ids[(edge+1)%4];
 
@@ -668,38 +608,33 @@ namespace Fem {
                 continue;
             }
 
-            //W.B. Robina
             double temperature = nodes[id1].bc.t_ext;
             double alfa = nodes[id1].bc.alfa;
 
-            //W.B. Neumanna;
             double flux = nodes[id1].bc.flux;
 
             double det_J = 0.5*dist(nodes[id1], nodes[id2]);
 
             for(int pc=0; pc<2; pc++){
                 int pc_on_egde = edge*2+pc;
-                Fem::Matrix Ns(4,1);
+                Fem::Matrix Ns = Matrix::Zero(4,1);
 
-                Ns[0][0] = Fem::N1_q(Fem::bc_xi_q[pc_on_egde], Fem::bc_eta_q[pc_on_egde]);
-                Ns[1][0] = Fem::N2_q(Fem::bc_xi_q[pc_on_egde], Fem::bc_eta_q[pc_on_egde]);
-                Ns[2][0] = Fem::N3_q(Fem::bc_xi_q[pc_on_egde], Fem::bc_eta_q[pc_on_egde]);
-                Ns[3][0] = Fem::N4_q(Fem::bc_xi_q[pc_on_egde], Fem::bc_eta_q[pc_on_egde]);
+                Ns(0,0) = Fem::N1_q(Fem::bc_xi_q[pc_on_egde], Fem::bc_eta_q[pc_on_egde]);
+                Ns(1,0) = Fem::N2_q(Fem::bc_xi_q[pc_on_egde], Fem::bc_eta_q[pc_on_egde]);
+                Ns(2,0) = Fem::N3_q(Fem::bc_xi_q[pc_on_egde], Fem::bc_eta_q[pc_on_egde]);
+                Ns(3,0) = Fem::N4_q(Fem::bc_xi_q[pc_on_egde], Fem::bc_eta_q[pc_on_egde]);
 
                 for(int i=0; i<4;i++){
-                    P_edge[i][0] += Ns[i][0]*Fem::bc_weights_q[pc_on_egde]*temperature;
+                    P_edge(i,0) += Ns(i,0)*Fem::bc_weights_q[pc_on_egde]*temperature;
                 }
             }
 
-            //W.B. Robina
             for(int i=0; i<4;i++){
-                p_vec[i][0] += P_edge[i][0]*det_J*alfa;
+                p_vec(i,0) += P_edge(i,0)*det_J*alfa;
             }
 
-
-            //W.B. Neumanna
             for(int i=0; i<4;i++){
-                p_vec[i][0] += P_edge[i][0]*det_J*flux;
+                p_vec(i,0) += P_edge(i,0)*det_J*flux;
             }
         }
 
@@ -708,35 +643,20 @@ namespace Fem {
 
     Matrix calc_local_C_q(Fem::Quad &element, std::vector<Fem::Node> &nodes, double rho, double c)
     {
-        Fem::Matrix C(4,4);
+        Fem::Matrix C = Matrix::Zero(4,4);
 
         for(int i=0; i<4; i++){
-            Fem::Matrix C_local(4,4);
             Fem::Matrix jacob = element.jacobian_mat(element, nodes, Fem::pc_xi_q[i], Fem::pc_eta_q[i]);
             double det_J = element.det_jacobian(jacob);
 
-            Fem::Matrix inv_jacob = element.inv_jacobian_mat(jacob);
+            Fem::Matrix base_functions_values = Matrix::Zero(4,1);
 
-            Fem::Matrix base_functions_values(4,1);
+            base_functions_values(0,0) = Fem::N1_q(Fem::pc_xi_q[i], Fem::pc_eta_q[i]);
+            base_functions_values(1,0) = Fem::N2_q(Fem::pc_xi_q[i], Fem::pc_eta_q[i]);
+            base_functions_values(2,0) = Fem::N3_q(Fem::pc_xi_q[i], Fem::pc_eta_q[i]);
+            base_functions_values(3,0) = Fem::N4_q(Fem::pc_xi_q[i], Fem::pc_eta_q[i]);
 
-            base_functions_values[0][0] = Fem::N1_q(Fem::pc_xi_q[i], Fem::pc_eta_q[i]);
-            base_functions_values[1][0] = Fem::N2_q(Fem::pc_xi_q[i], Fem::pc_eta_q[i]);
-            base_functions_values[2][0] = Fem::N3_q(Fem::pc_xi_q[i], Fem::pc_eta_q[i]);
-            base_functions_values[3][0] = Fem::N4_q(Fem::pc_xi_q[i], Fem::pc_eta_q[i]);
-
-            Fem::Matrix B_mat = base_functions_values*base_functions_values.transpose();
-
-            for(int row=0; row<4; row++){
-                for(int col=0; col<4; col++){
-                    C_local[row][col] = B_mat[row][col]*rho*c*det_J;
-                }
-            }
-
-            for(int row=0; row<4; row++){
-                for(int col=0; col<4; col++){
-                    C[row][col] += C_local[row][col]*Fem::pc_weights_q[i];
-                }
-            }
+            C += (base_functions_values*base_functions_values.transpose()) * (rho*c*det_J*Fem::pc_weights_q[i]);
         }
 
         return C;
@@ -749,7 +669,7 @@ namespace Fem {
                 int glob_i = element.node_ids[i];
                 int glob_j = element.node_ids[j];
 
-                Global[glob_i][glob_j] += Local[i][j];
+                Global(glob_i,glob_j) += Local(i,j);
             }
         }
     }
@@ -758,7 +678,7 @@ namespace Fem {
     {
         for(int i=0; i<4; i++){
             int glob_i = element.node_ids[i];
-            P_vec[glob_i][0] += Local[i][0];
+            P_vec(glob_i,0) += Local(i,0);
         }
     }
 
@@ -776,7 +696,6 @@ namespace Fem {
             return;
         }
 
-        // Suma wszystkich elementów (trójkąty + czworokąty)
         size_t total_cells = elements.size() + quads.size();
 
         out << R"(<?xml version="1.0"?>)"
@@ -785,7 +704,6 @@ namespace Fem {
             "    <Piece NumberOfPoints=\"" << nodes.size()
             << "\" NumberOfCells=\"" << total_cells << "\">\n";
 
-        // --- 1) Punkty (Węzły siatki) ---
         out << "      <Points>\n"
             "        <DataArray type=\"double32\" NumberOfComponents=\"3\" format=\"ascii\">\n";
         out << std::setprecision(6);
@@ -795,37 +713,29 @@ namespace Fem {
         out << "        </DataArray>\n"
             "      </Points>\n";
 
-        // --- 2) Komórki (Łączność/Topology) ---
         out << "      <Cells>\n"
             "        <DataArray type=\"Int32\" Name=\"connectivity\" format=\"ascii\">\n";
 
-        // Zapisz węzły dla trójkątów
         for (const auto& e : elements) {
             out << "          " << e.node_ids[0] << " " << e.node_ids[1] << " " << e.node_ids[2] << "\n";
         }
-        // Zapisz węzły dla czworokątów
         for (const auto& q : quads) {
             out << "          " << q.node_ids[0] << " " << q.node_ids[1] << " " << q.node_ids[2] << " " << q.node_ids[3] << "\n";
         }
         out << "        </DataArray>\n";
 
-        // --- 3) Przesunięcia (Offsets) ---
         out << "        <DataArray type=\"Int32\" Name=\"offsets\" format=\"ascii\">\n";
         int offset = 0;
-        // Offsety dla trójkątów (+3 węzły każdy)
         for (size_t i = 0; i < elements.size(); ++i) {
             offset += 3;
             out << "          " << offset << "\n";
         }
-        // Offsety dla czworokątów (+4 węzły każdy)
         for (size_t i = 0; i < quads.size(); ++i) {
             offset += 4;
             out << "          " << offset << "\n";
         }
         out << "        </DataArray>\n";
 
-        // --- 4) Typy elementów (Types) ---
-        // Typ VTK 5 to trójkąt, Typ VTK 9 to czworokąt
         out << "        <DataArray type=\"UInt8\" Name=\"types\" format=\"ascii\">\n";
         for (size_t i = 0; i < elements.size(); ++i) {
             out << "          5\n";
@@ -836,7 +746,6 @@ namespace Fem {
         out << "        </DataArray>\n"
             "      </Cells>\n";
 
-        // --- 5) Dane punktowe (Temperatura) ---
         out << "      <PointData Scalars=\"Temperature\">\n"
             "        <DataArray type=\"double32\" Name=\"Temperature\" format=\"ascii\">\n";
         for (double t : temp) {
@@ -874,22 +783,20 @@ namespace Fem {
             if (nodes[d].bc.exist && nodes[d].bc.dir_temp != 0.0) {
                 double T_presc = nodes[d].bc.dir_temp;
 
-                // 1) Modyfikacja innych wierszy dla zachowania symetrii (redukcja kolumny 'd')
                 for (int i = 0; i < conf.node_number; ++i) {
                     if (i != d) {
-                        B[i] -= A[i][d] * T_presc;
-                        A[i][d] = 0.0;
-                        A[d][i] = 0.0; // wyzerowanie symetrycznego elementu
+                        B[i] -= A(i,d) * T_presc;
+                        A(i,d) = 0.0;
+                        A(d,i) = 0.0;
                     }
                 }
 
-                // 2) Modyfikacja wiersza 'd' (zerowanie i ustawienie 1.0 na przekątnej)
                 for (int j = 0; j < conf.node_number; ++j) {
                     if (j != d) {
-                        A[d][j] = 0.0;
+                        A(d,j) = 0.0;
                     }
                 }
-                A[d][d] = 1.0;
+                A(d,d) = 1.0;
                 B[d] = T_presc;
             }
         }
@@ -916,25 +823,23 @@ namespace Fem {
         std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
 
         if (this->solver_type == "implicit_euler") {
-            // Tworzymy bazową macierz systemową (niezmodyfikowaną warunkiem Dirichleta)
-            Fem::Matrix Global_static(conf.node_number, conf.node_number);
+            Fem::Matrix Global_static = Matrix::Zero(conf.node_number, conf.node_number);
             for(int i=0; i<conf.node_number; i++){
                 for(int j=0; j<conf.node_number; j++){
-                    Global_static[i][j] = Global_H[i][j] + (Global_C[i][j] / conf.time_step);
+                    Global_static(i,j) = Global_H(i,j) + (Global_C(i,j) / conf.time_step);
                 }
             }
 
             std::cout<<"Beginning time integration (Implicit Euler)...\n";
             for(int i=conf.time_step; i<=conf.total_time; i+= conf.time_step){
-                // Tworzymy aktywną kopię dla danego kroku czasowego
                 Fem::Matrix Global_active = Global_static;
 
                 for(int j=0; j<conf.node_number; j++){
                     double rhs = 0;
                     for(int k = 0; k<conf.node_number; k++){
-                        rhs += (Global_C[j][k] / conf.time_step) * t0[k];
+                        rhs += (Global_C(j,k) / conf.time_step) * t0[k];
                     }
-                    rhs += Global_P[j][0];
+                    rhs += Global_P(j,0);
                     t1[j] = rhs;
                 }
 
@@ -973,18 +878,18 @@ namespace Fem {
                         continue;
                     }
 
-                    if (Global_C[j][j] == 0.0) {
+                    if (Global_C(j,j) == 0.0) {
                         t1[j] = t0[j];
                         continue;
                     }
 
                     double H_t0 = 0.0;
                     for (int k = 0; k < conf.node_number; k++) {
-                        H_t0 += Global_H[j][k] * t0[k];
+                        H_t0 += Global_H(j,k) * t0[k];
                     }
 
-                    double nawias = H_t0 - Global_P[j][0];
-                    double wspolczynnik = conf.time_step / Global_C[j][j];
+                    double nawias = H_t0 - Global_P(j,0);
+                    double wspolczynnik = conf.time_step / Global_C(j,j);
 
                     t1[j] = t0[j] - wspolczynnik * nawias;
                 }
@@ -1000,10 +905,10 @@ namespace Fem {
             std::cout << "\nMIN: " << *std::min_element(t1.begin(), t1.end())<< " MAX: " << *std::max_element(t1.begin(), t1.end()) << std::endl;
         }
         else if (this->solver_type == "crank-nicolson") {
-            Fem::Matrix Global_static(conf.node_number, conf.node_number);
+            Fem::Matrix Global_static = Matrix::Zero(conf.node_number, conf.node_number);
             for(int i=0; i<conf.node_number; i++){
                 for(int j=0; j<conf.node_number; j++){
-                    Global_static[i][j] = 0.5*Global_H[i][j] + (Global_C[i][j] / conf.time_step);
+                    Global_static(i,j) = 0.5*Global_H(i,j) + (Global_C(i,j) / conf.time_step);
                 }
             }
 
@@ -1014,9 +919,9 @@ namespace Fem {
                 for(int j=0; j<conf.node_number; j++){
                     double rhs = 0;
                     for(int k = 0; k<conf.node_number; k++){
-                        rhs += ((Global_C[j][k] / conf.time_step) -0.5*Global_H[j][k])* t0[k];
+                        rhs += ((Global_C(j,k) / conf.time_step) -0.5*Global_H(j,k))* t0[k];
                     }
-                    rhs += Global_P[j][0];
+                    rhs += Global_P(j,0);
                     t1[j] = rhs;
                 }
                 apply_dirichlet_symmetric(Global_active, t1);
@@ -1056,7 +961,7 @@ namespace Fem {
         Fem::Matrix A = this->Global_H;
         std::vector<double> B(conf.node_number);
         for (int i = 0; i < conf.node_number; ++i) {
-            B[i] = this->Global_P[i][0];
+            B[i] = this->Global_P(i,0);
         }
 
         apply_dirichlet_symmetric(A, B);

@@ -22,17 +22,13 @@ set(SOURCE_FILES
     src/main_window.cpp
     src/mesh/geometry.cpp
     src/mes/mes.cpp
-        src/solver/gauss.cpp
-    src/mes/matrix/matrix.cpp
     src/app_ui/axis.cpp
     src/app_ui/grid.cpp
         src/saving_data.cpp
         src/saving_data.h
         src/visual/visualisation.cpp
         src/visual/visualisation.h
-        src/mesh/afm.cpp
-        src/mesh/afm.h
-        src/solver/cholesky_ldl.cpp
+src/solver/cholesky_ldl.cpp
         src/solver/cholesky_ldl.h
         src/progress_bar.cpp
         src/progress_bar.h)

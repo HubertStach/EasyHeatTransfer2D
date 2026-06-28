@@ -1,7 +1,3 @@
-//
-// Created by hubert on 12/30/25.
-//
-
 #include "visualisation.h"
 
 #include <algorithm>
@@ -13,11 +9,10 @@
 #include <cmath>
 
 #include "rlgl.h"
-#include "../mes/matrix/matrix.h"
 #include "../mesh/geometry.h"
 
 
-Visualisation::Visualisation() : temps_matrix(1,1) {}
+Visualisation::Visualisation() : temps_matrix(Eigen::MatrixXd::Zero(1,1)) {}
 
 void Visualisation::init_visualisation(geo::Mesh &mesh) {
     if (!std::filesystem::exists(this->data_path) || !std::filesystem::is_directory(this->data_path)) {
@@ -33,7 +28,7 @@ void Visualisation::init_visualisation(geo::Mesh &mesh) {
 
             if (name_no_ext.find("sol_") == 0) {
                 try {
-                    std::string number_str = name_no_ext.substr(4); // "sol_" ma 4 znaki
+                    std::string number_str = name_no_ext.substr(4);
                     int number = stoi(number_str);
                     sorted_files_info.emplace_back(number, entry.path().string());
                 }
@@ -55,7 +50,7 @@ void Visualisation::init_visualisation(geo::Mesh &mesh) {
         this->time_ids.push_back(file_info.first);
     }
 
-    this->temps_matrix = Fem::Matrix(mesh.nodes.size(), sorted_files_info.size());
+    this->temps_matrix = Eigen::MatrixXd::Zero(mesh.nodes.size(), sorted_files_info.size());
 
     for (size_t col_idx = 0; col_idx < sorted_files_info.size(); ++col_idx) {
 
@@ -65,10 +60,6 @@ void Visualisation::init_visualisation(geo::Mesh &mesh) {
         std::ifstream file(filename);
         if (!file.is_open()) {
             std::cerr << "Blad: Nie mozna otworzyc pliku " << filename << std::endl;
-
-            for (size_t node_row = 0; node_row < mesh.nodes.size(); ++node_row) {
-                temps_matrix[node_row][col_idx] = 0.0f;
-            }
             continue;
         }
 
@@ -91,8 +82,8 @@ void Visualisation::init_visualisation(geo::Mesh &mesh) {
                 float temp_val;
 
                 while (ss >> temp_val) {
-                    if (current_node_idx < mesh.nodes.size()) {
-                        temps_matrix[current_node_idx][col_idx] = temp_val;
+                    if (current_node_idx < (int)mesh.nodes.size()) {
+                        temps_matrix(current_node_idx, col_idx) = temp_val;
                         current_node_idx++;
                     }
 
@@ -115,21 +106,18 @@ void Visualisation::init_visualisation(geo::Mesh &mesh) {
 Color get_color_from_temp(float val, float min_val, float max_val) {
     if (fabs(max_val - min_val) < 0.0001f) return GREEN;
 
-    // Normalizacja do zakresu 0.0 - 1.0
     float t = (val - min_val) / (max_val - min_val);
     t = std::clamp(t, 0.0f, 1.0f);
 
     unsigned char r = 0, g = 0, b = 0;
 
     if (t < 0.5f) {
-        // Przejście Niebieski -> Biały
-        float local_t = t * 2.0f; // skalujemy 0..0.5 na 0..1
+        float local_t = t * 2.0f;
         r = (unsigned char)(255 * local_t);
         g = (unsigned char)(255 * local_t);
         b = 255;
     } else {
-        // Przejście Biały -> Czerwony
-        float local_t = (t - 0.5f) * 2.0f; // skalujemy 0.5..1 na 0..1
+        float local_t = (t - 0.5f) * 2.0f;
         r = 255;
         g = (unsigned char)(255 * (1.0f - local_t));
         b = (unsigned char)(255 * (1.0f - local_t));

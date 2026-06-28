@@ -1,12 +1,7 @@
-//
-// Created by hubert on 12/30/25.
-//
-
 #pragma once
 
 #include <float.h>
-
-#include "../mes/matrix/matrix.h"
+#include <../../include/Eigen/Dense>
 #include "../mesh/geometry.h"
 
 struct Visualisation {
@@ -18,10 +13,8 @@ struct Visualisation {
 
     const std::string data_path = "Data";
 
-    //macierz temperatur w każdym momencie czasowym
-    Fem::Matrix temps_matrix;
+    Eigen::MatrixXd temps_matrix;
 
-    //wektor id kolejnych momentów czasowych
     std::vector<int> time_ids;
 
     Visualisation();

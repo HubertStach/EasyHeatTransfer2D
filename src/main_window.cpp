@@ -139,7 +139,7 @@ void MainWindow::Run() {
             if (loading_visual && vis.solved) {
                 std::vector<double> current_temps;
                 for (size_t i = 0; i < mesh.nodes.size(); i++)
-                    current_temps.push_back(i < vis.temps_matrix.rows ? vis.temps_matrix[i][vis.current_step] : 0.0);
+                    current_temps.push_back(i < (size_t)vis.temps_matrix.rows() ? vis.temps_matrix(i, vis.current_step) : 0.0);
                 mesh.draw_tr_grad(current_temps, vis.max_temp, vis.min_temp);
                 mesh.draw_q_grad(current_temps, vis.max_temp, vis.min_temp);
             }

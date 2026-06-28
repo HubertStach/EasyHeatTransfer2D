@@ -2,7 +2,7 @@
 #include <string>
 #include <vector>
 #include "raylib.h"
-#include "afm.h"
+//#include "afm.h"
 
 namespace geo {
     struct Bc {
@@ -33,15 +33,6 @@ namespace geo {
         Edge(int n1, int n2);
     };
 
-    struct Polygon{
-        std::vector<int> node_ids;
-        std::vector<int> bc_node_ids;
-        std::vector<int> edge_ids;
-
-        Polygon();
-        explicit Polygon(std::vector<int> node_ids);
-    };
-
     struct Triangle{
         int node_ids[3]{};
 
@@ -63,8 +54,6 @@ namespace geo {
         std::vector<Edge> initial_edges;
         std::vector<Triangle> triangles;
         std::vector<Quad> quads;
-        std::vector<Polygon> polygons;
-        AdvancingFront* afm=nullptr;
 
         bool mesh_created = false;
 
@@ -97,7 +86,6 @@ namespace geo {
         void draw_tr(Color c);
         void draw_q(Color c);
         void draw_q_grad(std::vector<double> &temp, float max, float min) const;
-        void draw_tr(std::vector<double> &temp, float max, float min) const;
         void draw_tr_grad(std::vector<double> &temp, float max, float min) const;
 
         //-------Ładowanie siatki---------
