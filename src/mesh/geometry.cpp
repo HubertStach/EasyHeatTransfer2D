@@ -629,13 +629,14 @@ void geo::Mesh::load_bcs(const std::string &filepath) {
 
         if (bc_selection) {
             int node_id;
-            float flux, alfa, t_ext;
+            float flux, alfa, t_ext, dir_temp;
             char comma;
             std::istringstream iss(line);
-            if (iss >> node_id >> comma >> flux >> comma >> alfa >> comma >> t_ext) {
+            if (iss >> node_id >> comma >> dir_temp >> comma >> flux >> comma >> alfa >> comma >> t_ext) {
                 this->nodes[node_id].bc.flux = flux;
                 this->nodes[node_id].bc.alfa = alfa;
                 this->nodes[node_id].bc.t_ext = t_ext;
+                this->nodes[node_id].bc.dir_temp = dir_temp;
                 this->nodes[node_id].bc.is_bc = true;
                 this->nodes[node_id].bc.initialised = true;
 

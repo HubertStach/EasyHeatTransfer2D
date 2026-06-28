@@ -34,20 +34,23 @@ namespace Fem{
         double flux;
         double alfa;
         double t_ext;
+        double dir_temp;
 
         BC_node(){
             this->id=0;
             this->flux=0.0;
             this->alfa=0.0;
             this->t_ext=0.0;
+            this->dir_temp=0.0;
         }
 
-        BC_node(int id, double flux, double alfa, double t_ext){
+        BC_node(int id, double flux, double alfa, double t_ext, double dir_temp){
             this->exist=true;
             this->id=id;
             this->flux=flux;
             this->alfa=alfa;
             this->t_ext=t_ext;
+            this->dir_temp=dir_temp;
         }
     };
 
@@ -178,8 +181,10 @@ namespace Fem{
 
         std::string solver_type;
 
-        double x_char = 100.0; //shortest edge in mesh -> characteristic for CFL number in explicit Euler
+        double x_char = 1000.0; //shortest edge in mesh -> characteristic for CFL number in explicit Euler
         void calc_x_char();
+
+        void apply_dirichlet_symmetric(Matrix &A, std::vector<double> &B);
 
         explicit Solution(std::string filename, const std::string& solver_type): Global_H(3,3), Global_C(3,3), Global_P(3,1)
         {
@@ -269,6 +274,7 @@ namespace Fem{
         }*/
 
         void solve(bool write_vtu, bool print_conf);
+        void solve_stationary(bool write_vtu);
     };
 }
 

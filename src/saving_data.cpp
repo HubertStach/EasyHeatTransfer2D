@@ -62,7 +62,7 @@ void save_fem_data(geo::Mesh &mesh, Fem::GlobalData conf) {
     plik << "*BC\n";
     for (size_t i = 0; i < mesh.nodes.size(); i++) {
         if (mesh.nodes[i].bc.is_bc) {
-            plik << i  << ", " << mesh.nodes[i].bc.flux << ", " << mesh.nodes[i].bc.alfa << ", " << mesh.nodes[i].bc.t_ext << "\n";
+            plik << i << ", "<< mesh.nodes[i].bc.dir_temp << ", " << mesh.nodes[i].bc.flux << ", " << mesh.nodes[i].bc.alfa << ", " << mesh.nodes[i].bc.t_ext << "\n";
         }
     }
 

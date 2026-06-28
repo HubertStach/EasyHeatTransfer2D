@@ -351,11 +351,11 @@ namespace Fem {
 
             if (bc_selection) {
                 int node_id;
-                double flux, alfa, t_ext;
+                double flux, alfa, t_ext, dir_temp;
                 char comma;
                 std::istringstream iss(line);
-                if (iss >> node_id >> comma >> flux >> comma >> alfa >> comma >> t_ext) {
-                    BC_node temp_bc(node_id, flux, alfa, t_ext);
+                if (iss >> node_id >> comma >> dir_temp >> comma >> flux >> comma >> alfa >> comma >> t_ext) {
+                    BC_node temp_bc(node_id, flux, alfa, t_ext, dir_temp);
                     nodes[node_id].bc = temp_bc;
                 }
                 else {
@@ -869,27 +869,66 @@ namespace Fem {
         this->x_char = temp_x;
     }
 
+    void Solution::apply_dirichlet_symmetric(Matrix &A, std::vector<double> &B) {
+        for (int d = 0; d < conf.node_number; ++d) {
+            if (nodes[d].bc.exist && nodes[d].bc.dir_temp != 0.0) {
+                double T_presc = nodes[d].bc.dir_temp;
+
+                // 1) Modyfikacja innych wierszy dla zachowania symetrii (redukcja kolumny 'd')
+                for (int i = 0; i < conf.node_number; ++i) {
+                    if (i != d) {
+                        B[i] -= A[i][d] * T_presc;
+                        A[i][d] = 0.0;
+                        A[d][i] = 0.0; // wyzerowanie symetrycznego elementu
+                    }
+                }
+
+                // 2) Modyfikacja wiersza 'd' (zerowanie i ustawienie 1.0 na przekątnej)
+                for (int j = 0; j < conf.node_number; ++j) {
+                    if (j != d) {
+                        A[d][j] = 0.0;
+                    }
+                }
+                A[d][d] = 1.0;
+                B[d] = T_presc;
+            }
+        }
+    }
+
+
     void Solution::solve(const bool write_vtu, bool print_conf) {
+
+        std::cout << "\n==================================================\n";
+        std::cout << "Solving non-stationary (Transient) heat equation...\n";
+        std::cout << "==================================================\n";
 
         std::vector<double> t0(conf.node_number);
         std::vector<double> t1(conf.node_number);
 
         for(int i=0; i<conf.node_number;i++){
-            t0[i] = conf.init_temperature;
+            if (nodes[i].bc.exist && nodes[i].bc.dir_temp != 0.0) {
+                t0[i] = nodes[i].bc.dir_temp;
+            } else {
+                t0[i] = conf.init_temperature;
+            }
         }
 
         std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
 
         if (this->solver_type == "implicit_euler") {
-            Fem::Matrix Global(conf.node_number, conf.node_number);
+            // Tworzymy bazową macierz systemową (niezmodyfikowaną warunkiem Dirichleta)
+            Fem::Matrix Global_static(conf.node_number, conf.node_number);
             for(int i=0; i<conf.node_number; i++){
                 for(int j=0; j<conf.node_number; j++){
-                    Global[i][j] = Global_H[i][j] + (Global_C[i][j] / conf.time_step);
+                    Global_static[i][j] = Global_H[i][j] + (Global_C[i][j] / conf.time_step);
                 }
             }
 
             std::cout<<"Beginning time integration (Implicit Euler)...\n";
             for(int i=conf.time_step; i<=conf.total_time; i+= conf.time_step){
+                // Tworzymy aktywną kopię dla danego kroku czasowego
+                Fem::Matrix Global_active = Global_static;
+
                 for(int j=0; j<conf.node_number; j++){
                     double rhs = 0;
                     for(int k = 0; k<conf.node_number; k++){
@@ -899,9 +938,9 @@ namespace Fem {
                     t1[j] = rhs;
                 }
 
-                //t1 = Gauss(Global, t1);
-                //t1 = Gauss_pivot(Global, t1);
-                t1 = cholesky_ldl(Global, t1);
+                apply_dirichlet_symmetric(Global_active, t1);
+
+                t1 = cholesky_ldl(Global_active, t1);
 
                 std::cout << "\nMIN: " << *std::min_element(t1.begin(), t1.end()) << " MAX: " << *std::max_element(t1.begin(), t1.end()) << std::endl;
 
@@ -928,6 +967,11 @@ namespace Fem {
 
             for(int i = conf.time_step; i <= conf.total_time; i += conf.time_step) {
                 for (int j = 0; j < conf.node_number; j++) {
+
+                    if (nodes[j].bc.exist && nodes[j].bc.dir_temp != 0.0) {
+                        t1[j] = nodes[j].bc.dir_temp;
+                        continue;
+                    }
 
                     if (Global_C[j][j] == 0.0) {
                         t1[j] = t0[j];
@@ -956,15 +1000,17 @@ namespace Fem {
             std::cout << "\nMIN: " << *std::min_element(t1.begin(), t1.end())<< " MAX: " << *std::max_element(t1.begin(), t1.end()) << std::endl;
         }
         else if (this->solver_type == "crank-nicolson") {
-            Fem::Matrix Global(conf.node_number, conf.node_number);
+            Fem::Matrix Global_static(conf.node_number, conf.node_number);
             for(int i=0; i<conf.node_number; i++){
                 for(int j=0; j<conf.node_number; j++){
-                    Global[i][j] = 0.5*Global_H[i][j] + (Global_C[i][j] / conf.time_step);
+                    Global_static[i][j] = 0.5*Global_H[i][j] + (Global_C[i][j] / conf.time_step);
                 }
             }
 
             std::cout<<"Beginning time integration (Crank-Nicolson)...\n";
             for(int i=conf.time_step; i<=conf.total_time; i+= conf.time_step){
+                Fem::Matrix Global_active = Global_static;
+
                 for(int j=0; j<conf.node_number; j++){
                     double rhs = 0;
                     for(int k = 0; k<conf.node_number; k++){
@@ -973,9 +1019,9 @@ namespace Fem {
                     rhs += Global_P[j][0];
                     t1[j] = rhs;
                 }
+                apply_dirichlet_symmetric(Global_active, t1);
 
-                //t1 = Gauss(Global, t1);
-                t1 = cholesky_ldl(Global, t1);
+                t1 = cholesky_ldl(Global_active, t1);
 
                 std::cout << "\nMIN: " << *std::min_element(t1.begin(), t1.end()) << " MAX: " << *std::max_element(t1.begin(), t1.end()) << std::endl;
 
@@ -996,10 +1042,48 @@ namespace Fem {
         std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
 
         std::cout << "Solving time = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
+        std::cout << "==================================================\n\n";
+
     }
+
+    void Solution::solve_stationary(const bool write_vtu) {
+        std::cout << "\n==================================================\n";
+        std::cout << "Solving stationary (steady-state) heat equation...\n";
+        std::cout << "==================================================\n\n";
+
+        std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
+
+        Fem::Matrix A = this->Global_H;
+        std::vector<double> B(conf.node_number);
+        for (int i = 0; i < conf.node_number; ++i) {
+            B[i] = this->Global_P[i][0];
+        }
+
+        apply_dirichlet_symmetric(A, B);
+
+        std::vector<double> T = cholesky_ldl(A, B);
+
+        std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+
+        std::cout << "MIN Temp: " << *std::min_element(T.begin(), T.end())
+                  << " | MAX Temp: " << *std::max_element(T.begin(), T.end()) << std::endl;
+        std::cout << "Stationary solving time = "
+                  << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
+
+        if (write_vtu) {
+            write_to_vtu_file(0, nodes, T, triangles, quads);
+        }
+        std::cout << "==================================================\n\n";
+    }
+
 }
 
 void fem_solve(const std::string& solver_type) {
     Fem::Solution solution("Data/fem_data.txt", solver_type);
-    solution.solve(true, true);
+
+    if (solver_type == "stationary") {
+        solution.solve_stationary(true);
+    } else {
+        solution.solve(true, true);
+    }
 }

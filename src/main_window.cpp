@@ -230,8 +230,9 @@ void MainWindow::DrawTabBCs() {
     if (!mesh_created) { ImGui::TextWrapped("Generate mesh first."); return; }
     if (bc_edge_clicked != -1) {
         ImGui::TextColored({1,0,1,1}, "Selected: %zu edges", selected_edges.size());
-        ImGui::InputFloat("Flux [q]", &bc_flux);
-        ImGui::InputFloat("Alpha [h]", &bc_alfa);
+        ImGui::InputFloat("Temperature", &bc_dir_temp);
+        ImGui::InputFloat("Flux", &bc_flux);
+        ImGui::InputFloat("Alpha", &bc_alfa);
         ImGui::InputFloat("T_ext", &bc_text);
         if (ImGui::Button("Save BC Values", ImVec2(-1, 30))) {
             for (int id : selected_edges) {
@@ -240,6 +241,7 @@ void MainWindow::DrawTabBCs() {
                 mesh.nodes[n1].bc.flux = mesh.nodes[n2].bc.flux = mesh.edges[id].bc_edge.flux = bc_flux;
                 mesh.nodes[n1].bc.alfa = mesh.nodes[n2].bc.alfa = mesh.edges[id].bc_edge.alfa = bc_alfa;
                 mesh.nodes[n1].bc.t_ext = mesh.nodes[n2].bc.t_ext = mesh.edges[id].bc_edge.t_ext = bc_text;
+                mesh.nodes[n1].bc.dir_temp = mesh.nodes[n2].bc.dir_temp = mesh.edges[id].bc_edge.dir_temp = bc_dir_temp;
             }
         }
     } else ImGui::TextDisabled("No edge selected. Click one!");
@@ -247,19 +249,38 @@ void MainWindow::DrawTabBCs() {
 
 void MainWindow::DrawTabSolver() {
     ImGui::Spacing();
-    ImGui::InputDouble("Sim Time", &configuration.total_time);
-    ImGui::InputDouble("Step dT", &configuration.time_step);
-    ImGui::Separator();
-    ImGui::RadioButton("Explicit", &current_solver, 0);
-    ImGui::RadioButton("Implicit", &current_solver, 1);
-    ImGui::RadioButton("Crank-Nicolson", &current_solver, 2);
 
-    if (current_solver == 0) solver_type_str = "explicit_euler";
-    else if (current_solver == 1) solver_type_str = "implicit_euler";
-    else solver_type_str = "crank-nicolson";
+    static int solver_mode = 1; // 0 = Stationary (Ustalony), 1 = Transient (Nieustalony)
+
+    ImGui::TextColored({ 0.3f, 0.6f, 1.0f, 1.0f }, "ANALYSIS TYPE");
+    ImGui::Separator();
+    ImGui::RadioButton("Stationary", &solver_mode, 0);
+    ImGui::SameLine();
+    ImGui::RadioButton("Transient", &solver_mode, 1);
+    ImGui::Separator();
+
+    if (solver_mode == 1) {
+        ImGui::Text("Time Parameters:");
+        ImGui::InputDouble("Sim Time", &configuration.total_time);
+        ImGui::InputDouble("Step dT", &configuration.time_step);
+        ImGui::Separator();
+
+        ImGui::Text("Time Integration Scheme:");
+        ImGui::RadioButton("Explicit", &current_solver, 0);
+        ImGui::RadioButton("Implicit", &current_solver, 1);
+        ImGui::RadioButton("Crank-Nicolson", &current_solver, 2);
+
+        if (current_solver == 0) solver_type_str = "explicit_euler";
+        else if (current_solver == 1) solver_type_str = "implicit_euler";
+        else solver_type_str = "crank-nicolson";
+    }
+    else {
+        solver_type_str = "stationary";
+        ImGui::TextDisabled("Time parameters and schemes are disabled in stationary mode.");
+    }
 
     ImGui::Separator();
-    ImGui::Text("Initial temperature");
+    ImGui::Text("Initial/Reference temperature");
     ImGui::InputDouble("C", &configuration.init_temperature);
 
     if (ImGui::CollapsingHeader("Material data")) {
@@ -269,10 +290,8 @@ void MainWindow::DrawTabSolver() {
         ImGui::Text("Conductivity");
         ImGui::InputDouble("W/m*K", &configuration.conductivity);
 
-
         ImGui::Text("Specific heat");
         ImGui::InputDouble("J/kg*K", &configuration.specific_heat);
-
     }
 
     if (ImGui::Button("RUN SIMULATION", ImVec2(-1, 40))) {
@@ -281,7 +300,8 @@ void MainWindow::DrawTabSolver() {
             std::thread fem_thread(fem_solve, solver_type_str);
             fem_thread.join();
             vis.init_visualisation(mesh);
-            problem_solved = true; loading_visual = true;
+            problem_solved = true;
+            loading_visual = true;
         }
     }
 }
