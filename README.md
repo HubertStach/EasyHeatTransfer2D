@@ -4,7 +4,6 @@
 EasyHeatTransfer2D is a computational application written in C++ that solves two-dimensional heat transfer problems using the Finite Element Method (FEM). The system uses an interactive graphical user interface built with ImGui and Raylib, allowing users to define simulations fully within the program environment.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Build Status](https://img.shields.io/travis/user/repo/build.svg?label=Build)](link-to-ci)
 [![GUI Framework](https://img.shields.io/badge/Framework-ImGui%2BRaylib-red.svg)]()
 
 ---
@@ -27,9 +26,9 @@ The simulation workflow is self-contained: users interact with the GUI to define
 The simulation relies on a three-stage pipeline to manage data flow:
 
 1.  **Mesh Assembly:** Geometric input is processed to generate global element connectivity. This step determines which degrees of freedom (DOFs) are coupled together across the domain elements.
-2.  **Matrix Calculation & Aggregation:** The core logic, managed by the `Solution` class (`src/mes/mes.h`), calculates local stiffness and capacity matrices ($\mathbf{H}_{local}, \mathbf{C}_{local}$) for every element. These matrices are then systematically aggregated into large-scale **Global System Matrices** ($\mathbf{H}_{Global}, \mathbf{C}_{Global}$), using Eigen for efficient linear algebra operations.
+2.  **Matrix Calculation & Aggregation:** The core logic, managed by the `Solution` class (`src/mes/mes.h`), calculates local stiffness and capacity matrices for every element. These matrices are then systematically aggregated into large-scale **Global System Matrices**, using Eigen for efficient linear algebra operations.
 3.  **Solver:** The solution method depends on the problem type:
-    *   **Transient Mode:** Advances time by solving $\mathbf{A} \cdot \Delta T = \mathbf{b}$ iteratively over defined time steps ($\Delta t$).
+    *   **Transient Mode:** Advances time by solving  iteratively over defined time steps .
     *   **Steady-State Mode:** Solves the system directly for the equilibrium state, requiring only one solution pass.
 
 ## Getting Started
