@@ -34,20 +34,23 @@ namespace Fem{
         double flux;
         double alfa;
         double t_ext;
+        double dir_temp;
 
         BC_node(){
             this->id=0;
             this->flux=0.0;
             this->alfa=0.0;
             this->t_ext=0.0;
+            this->dir_temp=0.0;
         }
 
-        BC_node(int id, double flux, double alfa, double t_ext){
+        BC_node(int id, double flux, double alfa, double t_ext, double dir_temp){
             this->exist=true;
             this->id=id;
             this->flux=flux;
             this->alfa=alfa;
             this->t_ext=t_ext;
+            this->dir_temp=dir_temp;
         }
     };
 

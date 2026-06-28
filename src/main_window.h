@@ -45,6 +45,7 @@ struct MainWindow {
     float bc_flux = 0.0f;
     float bc_alfa = 0.0f;
     float bc_text = 0.0f;
+    float bc_dir_temp = 0.0f;
 
     MainWindow();
     void Run();

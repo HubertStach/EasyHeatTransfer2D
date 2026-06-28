@@ -351,11 +351,11 @@ namespace Fem {
 
             if (bc_selection) {
                 int node_id;
-                double flux, alfa, t_ext;
+                double flux, alfa, t_ext, dir_temp;
                 char comma;
                 std::istringstream iss(line);
-                if (iss >> node_id >> comma >> flux >> comma >> alfa >> comma >> t_ext) {
-                    BC_node temp_bc(node_id, flux, alfa, t_ext);
+                if (iss >> node_id >> comma >> dir_temp >> comma >> flux >> comma >> alfa >> comma >> t_ext) {
+                    BC_node temp_bc(node_id, flux, alfa, t_ext, dir_temp);
                     nodes[node_id].bc = temp_bc;
                 }
                 else {

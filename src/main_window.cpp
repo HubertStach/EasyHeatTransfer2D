@@ -230,8 +230,9 @@ void MainWindow::DrawTabBCs() {
     if (!mesh_created) { ImGui::TextWrapped("Generate mesh first."); return; }
     if (bc_edge_clicked != -1) {
         ImGui::TextColored({1,0,1,1}, "Selected: %zu edges", selected_edges.size());
-        ImGui::InputFloat("Flux [q]", &bc_flux);
-        ImGui::InputFloat("Alpha [h]", &bc_alfa);
+        ImGui::InputFloat("Temperature", &bc_dir_temp);
+        ImGui::InputFloat("Flux", &bc_flux);
+        ImGui::InputFloat("Alpha", &bc_alfa);
         ImGui::InputFloat("T_ext", &bc_text);
         if (ImGui::Button("Save BC Values", ImVec2(-1, 30))) {
             for (int id : selected_edges) {
@@ -240,6 +241,7 @@ void MainWindow::DrawTabBCs() {
                 mesh.nodes[n1].bc.flux = mesh.nodes[n2].bc.flux = mesh.edges[id].bc_edge.flux = bc_flux;
                 mesh.nodes[n1].bc.alfa = mesh.nodes[n2].bc.alfa = mesh.edges[id].bc_edge.alfa = bc_alfa;
                 mesh.nodes[n1].bc.t_ext = mesh.nodes[n2].bc.t_ext = mesh.edges[id].bc_edge.t_ext = bc_text;
+                mesh.nodes[n1].bc.dir_temp = mesh.nodes[n2].bc.dir_temp = mesh.edges[id].bc_edge.dir_temp = bc_dir_temp;
             }
         }
     } else ImGui::TextDisabled("No edge selected. Click one!");

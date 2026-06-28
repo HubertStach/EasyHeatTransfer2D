@@ -2,3 +2,4 @@ build
 .vscode
 *.vtu
 fem_data_ref.txt
+CLAUDE.md

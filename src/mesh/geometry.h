@@ -11,6 +11,7 @@ namespace geo {
         float flux=0.0f;
         float alfa=0.0f;
         float t_ext=0.0f;
+        float dir_temp=0.0f;
     };
     
     struct Node{
