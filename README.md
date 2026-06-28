@@ -6,6 +6,9 @@ EasyHeatTransfer2D is a computational application written in C++ that solves two
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![GUI Framework](https://img.shields.io/badge/Framework-ImGui%2BRaylib-red.svg)]()
 
+![Example](gifs/gif_1.gif)
+
+
 ---
 
 ## Description
