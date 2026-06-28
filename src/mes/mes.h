@@ -274,6 +274,7 @@ namespace Fem{
         }*/
 
         void solve(bool write_vtu, bool print_conf);
+        void solve_stationary(bool write_vtu);
     };
 }
 

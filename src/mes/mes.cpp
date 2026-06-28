@@ -898,6 +898,10 @@ namespace Fem {
 
     void Solution::solve(const bool write_vtu, bool print_conf) {
 
+        std::cout << "\n==================================================\n";
+        std::cout << "Solving non-stationary (Transient) heat equation...\n";
+        std::cout << "==================================================\n";
+
         std::vector<double> t0(conf.node_number);
         std::vector<double> t1(conf.node_number);
 
@@ -1038,10 +1042,48 @@ namespace Fem {
         std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
 
         std::cout << "Solving time = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
+        std::cout << "==================================================\n\n";
+
     }
+
+    void Solution::solve_stationary(const bool write_vtu) {
+        std::cout << "\n==================================================\n";
+        std::cout << "Solving stationary (steady-state) heat equation...\n";
+        std::cout << "==================================================\n\n";
+
+        std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
+
+        Fem::Matrix A = this->Global_H;
+        std::vector<double> B(conf.node_number);
+        for (int i = 0; i < conf.node_number; ++i) {
+            B[i] = this->Global_P[i][0];
+        }
+
+        apply_dirichlet_symmetric(A, B);
+
+        std::vector<double> T = cholesky_ldl(A, B);
+
+        std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+
+        std::cout << "MIN Temp: " << *std::min_element(T.begin(), T.end())
+                  << " | MAX Temp: " << *std::max_element(T.begin(), T.end()) << std::endl;
+        std::cout << "Stationary solving time = "
+                  << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
+
+        if (write_vtu) {
+            write_to_vtu_file(0, nodes, T, triangles, quads);
+        }
+        std::cout << "==================================================\n\n";
+    }
+
 }
 
 void fem_solve(const std::string& solver_type) {
     Fem::Solution solution("Data/fem_data.txt", solver_type);
-    solution.solve(true, true);
+
+    if (solver_type == "stationary") {
+        solution.solve_stationary(true);
+    } else {
+        solution.solve(true, true);
+    }
 }
