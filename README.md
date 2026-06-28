@@ -4,7 +4,6 @@
 EasyHeatTransfer2D is a computational application written in C++ that solves two-dimensional heat transfer problems using the Finite Element Method (FEM). The system uses an interactive graphical user interface built with ImGui and Raylib, allowing users to define simulations fully within the program environment.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Build Status](https://img.shields.io/travis/user/repo/build.svg?label=Build)](link-to-ci)
 [![GUI Framework](https://img.shields.io/badge/Framework-ImGui%2BRaylib-red.svg)]()
 
 ---
