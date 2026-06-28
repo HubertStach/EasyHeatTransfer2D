@@ -102,26 +102,3 @@ void Visualisation::init_visualisation(geo::Mesh &mesh) {
     this->solved = true;
     this->current_step = 0;
 }
-
-Color get_color_from_temp(float val, float min_val, float max_val) {
-    if (fabs(max_val - min_val) < 0.0001f) return GREEN;
-
-    float t = (val - min_val) / (max_val - min_val);
-    t = std::clamp(t, 0.0f, 1.0f);
-
-    unsigned char r = 0, g = 0, b = 0;
-
-    if (t < 0.5f) {
-        float local_t = t * 2.0f;
-        r = (unsigned char)(255 * local_t);
-        g = (unsigned char)(255 * local_t);
-        b = 255;
-    } else {
-        float local_t = (t - 0.5f) * 2.0f;
-        r = 255;
-        g = (unsigned char)(255 * (1.0f - local_t));
-        b = (unsigned char)(255 * (1.0f - local_t));
-    }
-
-    return Color{r, g, b, 255};
-}

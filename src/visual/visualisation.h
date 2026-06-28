@@ -21,5 +21,3 @@ struct Visualisation {
     void init_visualisation(geo::Mesh &mesh);
 
 };
-
-static Color get_color_from_temp(float val, float min_val, float max_val);

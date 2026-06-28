@@ -9,9 +9,25 @@
 #include <map>
 #include <set>
 #include <sstream>
+#include <vector>
 
 #include "rlgl.h"
 #include "imgui.h"
+#include "../progress_bar.h"
+
+static Color color_for_temp(float val, float min_val, float max_val) {
+    if (std::fabs(max_val - min_val) < 0.0001f) return GREEN;
+    float t = std::clamp((val - min_val) / (max_val - min_val), 0.0f, 1.0f);
+    unsigned char r, g, b;
+    if (t < 0.5f) {
+        float lt = t * 2.0f;
+        r = (unsigned char)(255 * lt); g = r; b = 255;
+    } else {
+        float lt = (t - 0.5f) * 2.0f;
+        r = 255; g = (unsigned char)(255 * (1.0f - lt)); b = g;
+    }
+    return Color{r, g, b, 255};
+}
 
 geo::Node::Node()
 {
@@ -278,32 +294,6 @@ void geo::Mesh::draw_q(Color c) {
 }
 
 void geo::Mesh::draw_q_grad(std::vector<double> &temp, float max, float min) const {
-    auto get_color_for_temp = [max, min](float t_val) -> Color {
-        if (std::fabs(max - min) < 0.0001f) {
-            return GREEN;
-        }
-
-        // Normalizacja do zakresu 0.0 - 1.0
-        float t = (t_val - min) / (max - min);
-        t = std::clamp(t, 0.0f, 1.0f);
-
-        unsigned char r = 0, g = 0, b = 0;
-
-        if (t < 0.5f) {
-            float local_t = t * 2.0f;
-            r = (unsigned char)(255 * local_t);
-            g = (unsigned char)(255 * local_t);
-            b = 255;
-        } else {
-            float local_t = (t - 0.5f) * 2.0f;
-            r = 255;
-            g = (unsigned char)(255 * (1.0f - local_t));
-            b = (unsigned char)(255 * (1.0f - local_t));
-        }
-
-        return Color{r, g, b, 255};
-    };
-
     rlBegin(RL_TRIANGLES);
 
     for (const geo::Quad& q : this->quads) {
@@ -321,11 +311,11 @@ void geo::Mesh::draw_q_grad(std::vector<double> &temp, float max, float min) con
         float cy = (node1.y + node2.y + node3.y + node4.y) / 4.0f;
         float tc = (t1 + t2 + t3 + t4) / 4.0f;
 
-        Color col1 = get_color_for_temp(t1);
-        Color col2 = get_color_for_temp(t2);
-        Color col3 = get_color_for_temp(t3);
-        Color col4 = get_color_for_temp(t4);
-        Color colC = get_color_for_temp(tc);
+        Color col1 = color_for_temp(t1, min, max);
+        Color col2 = color_for_temp(t2, min, max);
+        Color col3 = color_for_temp(t3, min, max);
+        Color col4 = color_for_temp(t4, min, max);
+        Color colC = color_for_temp(tc, min, max);
 
         //rysujemy trójkąty 2 krotnie aby uniknąć back-cullingu -> trójkąty się nie wyświetlają bo och wektor normalny
         //jest w drugą stronę od kamery/ekranu
@@ -352,35 +342,6 @@ void geo::Mesh::draw_q_grad(std::vector<double> &temp, float max, float min) con
 }
 
 void geo::Mesh::draw_tr_grad(std::vector<double> &temp, float max, float min) const {
-
-    auto get_color_for_temp = [max, min](float t_val) -> Color {
-        if (std::fabs(max - min) < 0.0001f) {
-            return GREEN;
-        }
-
-        // Normalizacja do zakresu 0.0 - 1.0
-        float t = (t_val - min) / (max - min);
-        t = std::clamp(t, 0.0f, 1.0f);
-
-        unsigned char r = 0, g = 0, b = 0;
-
-        if (t < 0.5f) {
-            // Przejście Niebieski -> Biały
-            float local_t = t * 2.0f; // skalujemy 0..0.5 na 0..1
-            r = (unsigned char)(255 * local_t);
-            g = (unsigned char)(255 * local_t);
-            b = 255;
-        } else {
-            // Przejście Biały -> Czerwony
-            float local_t = (t - 0.5f) * 2.0f; // skalujemy 0.5..1 na 0..1
-            r = 255;
-            g = (unsigned char)(255 * (1.0f - local_t));
-            b = (unsigned char)(255 * (1.0f - local_t));
-        }
-
-        return Color{r, g, b, 255};
-    };
-
     rlBegin(RL_TRIANGLES);
 
     for (const geo::Triangle& tr : this->triangles) {
@@ -392,9 +353,9 @@ void geo::Mesh::draw_tr_grad(std::vector<double> &temp, float max, float min) co
         float t2 = temp[tr.node_ids[1]];
         float t3 = temp[tr.node_ids[2]];
 
-        Color col1 = get_color_for_temp(t1);
-        Color col2 = get_color_for_temp(t2);
-        Color col3 = get_color_for_temp(t3);
+        Color col1 = color_for_temp(t1, min, max);
+        Color col2 = color_for_temp(t2, min, max);
+        Color col3 = color_for_temp(t3, min, max);
 
         // --- RYSOWANIE TRÓJKĄTA (Zgodnie z kierunkiem wskazówek zegara / przeciw) ---
         // Należy zdefiniować kolor ZANIM zdefiniuje się wierzchołek
@@ -959,85 +920,54 @@ bool geo::Mesh::is_boundary_edge(std::vector<geo::Triangle> &triangles, geo::Edg
 void geo::Mesh::triangulate()
 {
     size_t original_nodes_count = this->nodes.size();
-    if (original_nodes_count < 3) {
-        return;
-    }
+    if (original_nodes_count < 3) return;
 
     std::vector<geo::Node> original_nodes = this->nodes;
 
-    std::vector<geo::Node> super_triangle_nodes = this->super_triangle();
-    this->nodes.insert(this->nodes.begin(), super_triangle_nodes.begin(), super_triangle_nodes.end());
+    std::vector<geo::Node> st = this->super_triangle();
+    this->nodes.insert(this->nodes.begin(), st.begin(), st.end());
 
     std::vector<geo::Triangle> triangulation;
     triangulation.emplace_back(0, 1, 2);
 
-
     for (size_t i = 0; i < original_nodes_count; ++i) {
-        size_t node_id = i + 3;
+        int node_id = (int)(i + 3);
 
-        std::vector<geo::Triangle> bad_triangles;
-        std::vector<geo::Edge> polygon_edges;
-
-        for (const geo::Triangle& tr : triangulation) {
-            if (inside_circumcircle(tr, node_id)) {
-                bad_triangles.push_back(tr);
-            }
+        // collect bad triangle indices (O(n))
+        std::vector<size_t> bad_idx;
+        for (size_t t = 0; t < triangulation.size(); ++t) {
+            if (inside_circumcircle(triangulation[t], node_id))
+                bad_idx.push_back(t);
         }
 
-        for (const auto& bad_tr : bad_triangles) {
-            int n[3] = {bad_tr.node_ids[0], bad_tr.node_ids[1], bad_tr.node_ids[2]};
-            for (int j = 0; j < 3; ++j) {
-                geo::Edge edge(n[j], n[(j + 1) % 3]);
-
-                bool is_shared = false;
-                for (const auto& other_bad_tr : bad_triangles) {
-                    if (&bad_tr == &other_bad_tr) continue;
-
-                    int other_n[3] = {other_bad_tr.node_ids[0], other_bad_tr.node_ids[1], other_bad_tr.node_ids[2]};
-
-                    for (int k = 0; k < 3; ++k) {
-                        if ((edge.node_ids[0] == other_n[k] && edge.node_ids[1] == other_n[(k + 1) % 3]) ||
-                            (edge.node_ids[0] == other_n[(k + 1) % 3] && edge.node_ids[1] == other_n[k])) {
-                            is_shared = true;
-                            break;
-                        }
-                    }
-                    if (is_shared) break;
-                }
-
-                if (!is_shared) {
-                    polygon_edges.push_back(edge);
-                }
-            }
+        // boundary edges: those belonging to exactly one bad triangle (O(k log k))
+        std::map<std::pair<int,int>, int> edge_count;
+        for (size_t t : bad_idx) {
+            const int* n = triangulation[t].node_ids;
+            for (int j = 0; j < 3; ++j)
+                edge_count[{std::min(n[j], n[(j+1)%3]), std::max(n[j], n[(j+1)%3])}]++;
         }
 
-        std::vector<geo::Triangle> temp_triangulation;
-        for (const auto& tr : triangulation) {
-            bool is_bad = false;
-            for (const auto& bad_tr : bad_triangles) {
-                if (same_triangle(tr, bad_tr)) {
-                    is_bad = true;
-                    break;
-                }
-            }
-            if (!is_bad) {
-                temp_triangulation.push_back(tr);
-            }
-        }
-        triangulation = temp_triangulation;
+        // remove bad triangles in-place (O(n))
+        std::vector<bool> is_bad(triangulation.size(), false);
+        for (size_t t : bad_idx) is_bad[t] = true;
+        size_t w = 0;
+        for (size_t t = 0; t < triangulation.size(); ++t)
+            if (!is_bad[t]) triangulation[w++] = triangulation[t];
+        triangulation.resize(w);
 
-        for (const auto& edge : polygon_edges) {
-            triangulation.emplace_back(edge.node_ids[0], edge.node_ids[1], node_id);
-        }
+        // add new triangles from boundary edges to inserted point
+        for (auto& [e, cnt] : edge_count)
+            if (cnt == 1)
+                triangulation.emplace_back(e.first, e.second, node_id);
     }
 
     this->nodes = original_nodes;
 
     this->triangles.clear();
     for (const auto& tr : triangulation) {
-        if (tr.node_ids[0] >= 3 && tr.node_ids[1] >= 3 && tr.node_ids[2] >= 3) {
-            this->triangles.emplace_back(tr.node_ids[0] - 3, tr.node_ids[1] - 3, tr.node_ids[2] - 3);
-        }
+        if (tr.node_ids[0] >= 3 && tr.node_ids[1] >= 3 && tr.node_ids[2] >= 3)
+            this->triangles.emplace_back(tr.node_ids[0]-3, tr.node_ids[1]-3, tr.node_ids[2]-3);
     }
 }
 
@@ -1092,6 +1022,7 @@ void geo::Mesh::create_nodes(float alpha, float beta) {
     }
 
     // Krok 2: Generacja początkowej triangulacji z punktów brzegowych
+    std::cout << "Initial triangulation...\n";
     this->triangulate();
 
     // Główna pętla wstawiania punktów (Sweep)
@@ -1099,6 +1030,7 @@ void geo::Mesh::create_nodes(float alpha, float beta) {
     int current_iter = 0;
     int max_iter = 200; // Zabezpieczenie przed nieskończoną pętlą (na wypadek skrajnych ułamków)
 
+    std::cout << "Inserting interior points...\n";
     while (points_added && current_iter < max_iter) {
         points_added = false;
         current_iter++;
@@ -1172,7 +1104,10 @@ void geo::Mesh::create_nodes(float alpha, float beta) {
 
             this->triangulate();
         }
+
+        showProgress(current_iter, max_iter);
     }
+    std::cout << "\nDone. Total nodes: " << this->nodes.size() << "\n";
 }
 
 void geo::Mesh::remove_outside_triangles() {
@@ -1265,7 +1200,10 @@ void geo::Mesh::recreate_mising_triangles() {
 
 void geo::Mesh::create_mesh(float spacing, float alfa, float beta)
 {
-    // 1. Czyszczenie starych danych
+    std::cout << "==================================================\n";
+    std::cout << "Generating mesh...\n";
+    std::cout << "==================================================\n";
+
     if(this->mesh_created){
         this->nodes.clear();
         this->triangles.clear();
@@ -1277,15 +1215,21 @@ void geo::Mesh::create_mesh(float spacing, float alfa, float beta)
         this->initial_edges = this->edges;
     }
 
+    std::cout << "Interpolating boundary points...\n";
     this->interpolate_bc_points(spacing);
 
     this->create_nodes(alfa, beta);
 
+    std::cout << "Removing outside triangles...\n";
     this->remove_outside_triangles();
 
+    std::cout << "Repairing missing boundaries...\n";
     this->recreate_mising_triangles();
 
     this->mesh_created = true;
+    std::cout << "Mesh complete. Triangles: " << this->triangles.size()
+              << ", Nodes: " << this->nodes.size() << "\n";
+    std::cout << "==================================================\n";
 }
 
 //dobieranie warunków brzegowych
