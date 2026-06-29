@@ -181,8 +181,27 @@ void MainWindow::Run() {
         if (creatingMesh) {
             DrawCircleV(screenPos, 4, RED);
             DrawTextEx(GetFontDefault(), TextFormat("[%0.1f, %0.1f]", worldPos.x, worldPos.y), { screenPos.x + 10, screenPos.y - 20 }, 18, 1, RAYWHITE);
-            if (IsKeyPressed(KEY_E)) mesh.add_point(worldPos.x, worldPos.y);
-            if (IsKeyPressed(KEY_Q)) { mesh.pop_point(); mesh_created = false; }
+            if (IsKeyPressed(KEY_E)) {
+                mesh.add_point(worldPos.x, worldPos.y);
+            }
+
+            if (IsKeyPressed(KEY_Q)) {
+                if(mesh_created){
+                    if(problem_solved){
+                        vis.solved = false;
+                        loading_visual = false;
+                        problem_solved = false;
+                    }
+                    mesh.triangles.clear();
+                    mesh.edges.clear();
+                    selected_edges.clear();
+                    bc_edge_clicked = -1;
+                }
+
+                mesh.pop_point();
+                mesh_created = false;
+            }
+
         }
 
         rlDisableScissorTest();

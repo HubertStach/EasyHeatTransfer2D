@@ -3,3 +3,4 @@ build
 *.vtu
 fem_data_ref.txt
 CLAUDE.md
+fem_data.txt

@@ -728,8 +728,6 @@ void geo::Mesh::interpolate_bc_points(float spacing)
     int global_node_index = 0;
 
     for (size_t i = 0; i < parent_edge_count; i++) {
-
-        // Pobieramy oryginalną krawędź (rodzica)
         const geo::Edge& parent_edge = this->edges[i];
 
         geo::Node& A = this->nodes[parent_edge.node_ids[0]];
@@ -746,6 +744,7 @@ void geo::Mesh::interpolate_bc_points(float spacing)
         float x_diff = (B.x-A.x)*(1.0f/static_cast<float>(N));
         float y_diff = (B.y-A.y)*(1.0f/static_cast<float>(N));
         float temp_bc_max_len = std::sqrt(std::pow(x_diff,2) + std::pow(y_diff,2));
+
         if (this->max_bc_len <= temp_bc_max_len) {
             this->max_bc_len = temp_bc_max_len;
         }
@@ -757,7 +756,7 @@ void geo::Mesh::interpolate_bc_points(float spacing)
             geo::Node temp_node(x_u(u), y_u(u));
             temp_node.bc.is_bc = true;
 
-            // Przypisanie BC do węzła (opcjonalne, zależnie czy potrzebujesz w node czy edge)
+            // Przypisanie BC do węzła
             if (parent_edge.bc_edge.initialised) {
                 temp_node.bc = parent_edge.bc_edge;
                 temp_node.bc.initialised = true;
@@ -944,11 +943,13 @@ void geo::Mesh::triangulate()
         std::map<std::pair<int,int>, int> edge_count;
         for (size_t t : bad_idx) {
             const int* n = triangulation[t].node_ids;
+
             for (int j = 0; j < 3; ++j)
+            {
                 edge_count[{std::min(n[j], n[(j+1)%3]), std::max(n[j], n[(j+1)%3])}]++;
+            }
         }
 
-        // remove bad triangles in-place (O(n))
         std::vector<bool> is_bad(triangulation.size(), false);
         for (size_t t : bad_idx) is_bad[t] = true;
         size_t w = 0;
@@ -956,18 +957,20 @@ void geo::Mesh::triangulate()
             if (!is_bad[t]) triangulation[w++] = triangulation[t];
         triangulation.resize(w);
 
-        // add new triangles from boundary edges to inserted point
-        for (auto& [e, cnt] : edge_count)
-            if (cnt == 1)
+        for (auto& [e, cnt] : edge_count){
+            if (cnt == 1){
                 triangulation.emplace_back(e.first, e.second, node_id);
+            }
+        }
     }
 
     this->nodes = original_nodes;
 
     this->triangles.clear();
     for (const auto& tr : triangulation) {
-        if (tr.node_ids[0] >= 3 && tr.node_ids[1] >= 3 && tr.node_ids[2] >= 3)
+        if (tr.node_ids[0] >= 3 && tr.node_ids[1] >= 3 && tr.node_ids[2] >= 3){
             this->triangles.emplace_back(tr.node_ids[0]-3, tr.node_ids[1]-3, tr.node_ids[2]-3);
+        }
     }
 }
 
@@ -992,12 +995,11 @@ bool geo::Mesh::point_in_mesh(float x, float y) {
 }
 
 
-//źródło algorytmu
-//Owen, Steven. (2000). A Survey of Unstructured Mesh Generation Technology. 7th International Meshing Roundtable. 3.
+// źródło algorytmu
+// Owen, Steven. (2000). A Survey of Unstructured Mesh Generation Technology. 7th International Meshing Roundtable. 3.
 // rodział 2.2.1 Point insertion
 void geo::Mesh::create_nodes(float alpha, float beta) {
     // Krok 1 (z artykułu): Obliczenie funkcji dystrybucji punktów (dp_o) dla brzegu.
-    // Dystrybucja to średnia długość krawędzi połączonych z danym węzłem.
     std::vector<float> dp(this->nodes.size(), 0.0f);
     std::vector<int> edge_count(this->nodes.size(), 0);
 
@@ -1028,7 +1030,7 @@ void geo::Mesh::create_nodes(float alpha, float beta) {
     // Główna pętla wstawiania punktów (Sweep)
     bool points_added = true;
     int current_iter = 0;
-    int max_iter = 200; // Zabezpieczenie przed nieskończoną pętlą (na wypadek skrajnych ułamków)
+    int max_iter = 200;
 
     std::cout << "Inserting interior points...\n";
     while (points_added && current_iter < max_iter) {
@@ -1202,7 +1204,7 @@ void geo::Mesh::create_mesh(float spacing, float alfa, float beta)
 {
     std::cout << "==================================================\n";
     std::cout << "Generating mesh...\n";
-    std::cout << "==================================================\n";
+    std::cout << "==================================================\n\n";
 
     if(this->mesh_created){
         this->nodes.clear();
