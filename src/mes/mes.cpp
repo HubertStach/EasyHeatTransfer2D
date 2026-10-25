@@ -707,7 +707,7 @@ namespace Fem {
             << "\" NumberOfCells=\"" << total_cells << "\">\n";
 
         out << "      <Points>\n"
-            "        <DataArray type=\"double32\" NumberOfComponents=\"3\" format=\"ascii\">\n";
+            "        <DataArray type=\"Float64\" NumberOfComponents=\"3\" format=\"ascii\">\n";
         out << std::setprecision(6);
         for (const auto& n : nodes) {
             out << "          " << n.x << " " << n.y << " 0\n";
@@ -749,7 +749,7 @@ namespace Fem {
             "      </Cells>\n";
 
         out << "      <PointData Scalars=\"Temperature\">\n"
-            "        <DataArray type=\"double32\" Name=\"Temperature\" format=\"ascii\">\n";
+            "        <DataArray type=\"Float64\" Name=\"Temperature\" format=\"ascii\">\n";
         for (double t : temp) {
             out << "          " << t << "\n";
         }
