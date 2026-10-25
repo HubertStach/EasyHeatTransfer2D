@@ -244,7 +244,21 @@ void MainWindow::DrawTabMesh() {
             mesh.create_mesh(spacing, mesh_alfa, mesh_beta);
         }
     }
-    if (ImGui::Button("Clear All", ImVec2(-1, 0))) { mesh.nodes.clear(); mesh.edges.clear(); mesh_created = false; bc_edge_clicked = -1; }
+    if (ImGui::Button("Clear All", ImVec2(-1, 0))) {
+        if (problem_solved) {
+            vis.solved = false;
+            loading_visual = false;
+            problem_solved = false;
+        }
+        mesh.nodes.clear();
+        mesh.edges.clear();
+        mesh.triangles.clear();
+        mesh.quads.clear();
+        selected_edges.clear();
+        mesh_created = false;
+        bc_edge_clicked = -1;
+        clean_vtu_files();
+    }
 }
 
 void MainWindow::DrawTabBCs() {
