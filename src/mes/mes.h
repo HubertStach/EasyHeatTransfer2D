@@ -6,6 +6,7 @@
 #include <string>
 #include <../../include/Eigen/Dense>
 #include "../progress_bar.h"
+#include "../solver/cholesky_ldl.h"
 
 namespace Fem {
 
@@ -166,7 +167,7 @@ void aggregate_p_vec_tr(Matrix &P_vec, const Triangle& element, Matrix &Local);
 Matrix calc_local_H_q(Quad &element, std::vector<Node> &nodes, double conductivity);
 Matrix calc_local_Hbc_q(Quad &element, std::vector<Node> &nodes);
 Matrix calc_P_q(Quad &element, std::vector<Node> &nodes);
-Matrix calc_local_C_q(Quad &element, std::vector<Node> &nodes, double rho, double c);
+Matrix calc_local_C_q(Quad &element, std::vector<Node> &nodes, double rho, double c, int c_lump);
 void aggregate_q(Matrix &Global, Quad element, Matrix &Local);
 void aggregate_p_vec_q(Matrix &P_vec, Quad element, Matrix &Local);
 //----------------------------
@@ -185,7 +186,18 @@ struct Solution{
 
     std::string solver_type;
 
-    void apply_dirichlet_symmetric(Matrix &A, std::vector<double> &B);
+    struct DirichletData {
+        std::vector<char> mask;   // 1 = węzeł z zadaną temperaturą
+        Eigen::VectorXd values;   // zadane temperatury (0 w pozostałych węzłach)
+        Eigen::VectorXd lift;     // A * values: wkład znanych temperatur do prawej strony
+        Eigen::VectorXd diag;     // przekątna A
+    };
+
+    bool is_dirichlet(int node) const;
+    DirichletData apply_dirichlet_matrix(SparseMatrix &A) const;
+    static void apply_dirichlet_rhs(const DirichletData &d, Eigen::VectorXd &b);
+
+    void solve_theta(double theta, bool write_vtu);
 
     explicit Solution(std::string filename, const std::string& solver_type): Global_H(3,3), Global_C(3,3), Global_P(3,1)
     {
@@ -229,7 +241,7 @@ struct Solution{
             quad.H_local = calc_local_H_q(quad, this->nodes, this->conf.conductivity);
             quad.H_bc = calc_local_Hbc_q(quad, this->nodes);
             quad.P = calc_P_q(quad, this->nodes);
-            quad.C = calc_local_C_q(quad, this->nodes, this->conf.density, this->conf.specific_heat);
+            quad.C = calc_local_C_q(quad, this->nodes, this->conf.density, this->conf.specific_heat, c_lump);
 
             quad.H_local += quad.H_bc;
 

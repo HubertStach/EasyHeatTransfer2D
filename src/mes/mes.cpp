@@ -10,7 +10,6 @@
 #include <cmath>
 
 #include "mes.h"
-#include "../solver/cholesky_ldl.h"
 
 namespace Fem {
     // --------------Triangles----------------
@@ -627,23 +626,19 @@ namespace Fem {
                 Ns(3,0) = Fem::N4_q(Fem::bc_xi_q[pc_on_egde], Fem::bc_eta_q[pc_on_egde]);
 
                 for(int i=0; i<4;i++){
-                    P_edge(i,0) += Ns(i,0)*Fem::bc_weights_q[pc_on_egde]*temperature;
+                    P_edge(i,0) += Ns(i,0)*bc_weights_q[pc];
                 }
             }
 
             for(int i=0; i<4;i++){
-                p_vec(i,0) += P_edge(i,0)*det_J*alfa;
-            }
-
-            for(int i=0; i<4;i++){
-                p_vec(i,0) += P_edge(i,0)*det_J*flux;
+                p_vec(i,0) += P_edge(i,0)*det_J*(alfa*temperature + flux);
             }
         }
 
         return p_vec;
     }
 
-    Matrix calc_local_C_q(Fem::Quad &element, std::vector<Fem::Node> &nodes, double rho, double c)
+    Matrix calc_local_C_q(Fem::Quad &element, std::vector<Fem::Node> &nodes, double rho, double c, int c_lump)
     {
         Fem::Matrix C = Matrix::Zero(4,4);
 
@@ -661,6 +656,11 @@ namespace Fem {
             C += (base_functions_values*base_functions_values.transpose()) * (rho*c*det_J*Fem::pc_weights_q[i]);
         }
 
+        if (c_lump == 1) {
+            Matrix C_l = Matrix::Zero(4,4);
+            for (int i = 0; i < 4; ++i) C_l(i,i) = C.row(i).sum();
+            C = C_l;
+        }
         return C;
     }
 
@@ -763,35 +763,94 @@ namespace Fem {
         out.close();
     }
 
-    void Solution::apply_dirichlet_symmetric(Matrix &H, std::vector<double> &P) {
-        for (int d = 0; d < conf.node_number; ++d) {
-            if (nodes[d].bc.exist && nodes[d].bc.dir_temp != 0.0) {
-                double T_presc = nodes[d].bc.dir_temp;
+    bool Solution::is_dirichlet(const int node) const {
+        return nodes[node].bc.exist && nodes[node].bc.dir_temp != 0.0;
+    }
 
-                for (int i = 0; i < conf.node_number; ++i) {
-                    if (i != d) {
-                        P[i] -= H(i,d) * T_presc;
-                        H(i,d) = 0.0;
-                        H(d,i) = 0.0;
-                    }
-                }
-
-                for (int j = 0; j < conf.node_number; ++j) {
-                    if (j != d) {
-                        H(d,j) = 0.0;
-                    }
-                }
-
-                P[d] = +H(d,d) * T_presc;
+    // Narzucenie warunku Dirichleta na macierz układu (sekcja 2.2.6).
+    // Wywoływane raz: zwraca dane, którymi w każdym kroku modyfikuje się tylko prawą stronę.
+    Solution::DirichletData Solution::apply_dirichlet_matrix(SparseMatrix &A) const {
+        const int n = conf.node_number;
+        DirichletData d;
+        d.mask.assign(n, 0);
+        d.values = Eigen::VectorXd::Zero(n);
+        for (int i = 0; i < n; ++i) {
+            if (is_dirichlet(i)) {
+                d.mask[i] = 1;
+                d.values[i] = nodes[i].bc.dir_temp;
             }
         }
+
+        // krok 1: wkład znanych temperatur do prawej strony, p_i -= A_id * T_d (stały w czasie)
+        d.lift = A * d.values;
+        d.diag = A.diagonal();
+
+        // kroki 2-3: zerowanie wierszy i kolumn węzłów Dirichleta, przekątna pozostaje bez zmian
+        A.prune([&d](const Eigen::Index &i, const Eigen::Index &j, const double &) {
+            return i == j || (!d.mask[i] && !d.mask[j]);
+        });
+        return d;
+    }
+
+    void Solution::apply_dirichlet_rhs(const DirichletData &d, Eigen::VectorXd &b) {
+        b -= d.lift;
+        for (Eigen::Index i = 0; i < b.size(); ++i) {
+            if (d.mask[i]) {
+                b[i] = d.diag[i] * d.values[i];
+            }
+        }
+    }
+
+    // Schemat theta:  (C/dt + theta*H) T^{n+1} = (C/dt - (1-theta)*H) T^n + p
+    // theta = 1   -> niejawny Euler (równanie imp_euler podzielone przez dt)
+    // theta = 0.5 -> Crank-Nicolson  (równanie crank_nicolson podzielone przez dt)
+    void Solution::solve_theta(const double theta, const bool write_vtu) {
+        const int n = conf.node_number;
+        const double dt = conf.time_step;
+
+        // 1. macierze globalne w postaci rzadkiej (raz)
+        const SparseMatrix H = Global_H.sparseView();
+        const SparseMatrix C = Global_C.sparseView();
+        const Eigen::VectorXd P = Global_P.col(0);
+
+        // 2. macierze lewej i prawej strony - stałe w czasie
+        SparseMatrix A = C / dt + theta * H;
+        const SparseMatrix B = C / dt - (1.0 - theta) * H;
+
+        // 3. warunek Dirichleta na macierzy A (raz)
+        const DirichletData dir = apply_dirichlet_matrix(A);
+
+        // 4. faktoryzacja LDL^T (raz)
+        CholeskyLDL solver;
+        solver.factorize(A);
+
+        // 5. warunek początkowy
+        Eigen::VectorXd T(n);
+        for (int i = 0; i < n; ++i) {
+            T[i] = dir.mask[i] ? dir.values[i] : conf.init_temperature;
+        }
+
+        // 6. pętla czasowa: mnożenie macierz-wektor i podstawienia
+        const int n_steps = static_cast<int>(std::lround(conf.total_time / dt));
+        for (int k = 1; k <= n_steps; ++k) {
+            Eigen::VectorXd b = B * T + P;
+            apply_dirichlet_rhs(dir, b);
+            T = solver.solve(b);
+
+            if (write_vtu) {
+                const std::vector<double> T_out(T.data(), T.data() + n);
+                write_to_vtu_file(k, nodes, T_out, triangles, quads);
+            }
+            showProgress(k, n_steps);
+        }
+        std::cout << "\nMIN: " << T.minCoeff() << " MAX: " << T.maxCoeff() << std::endl;
     }
 
     double Solution::stability_dt_max() {
         double dt_max = std::numeric_limits<double>::max();
         for (int j = 0; j < conf.node_number; j++) {
             // Dirichlet and disconnected nodes are held/overwritten, not integrated.
-            if (nodes[j].bc.exist && nodes[j].bc.dir_temp != 0.0) {
+            if (is_dirichlet(j)) {
                 continue;
             }
 
@@ -820,7 +879,7 @@ namespace Fem {
         std::vector<double> t1(conf.node_number);
 
         for(int i=0; i<conf.node_number;i++){
-            if (nodes[i].bc.exist && nodes[i].bc.dir_temp != 0.0) {
+            if (is_dirichlet(i)) {
                 t0[i] = nodes[i].bc.dir_temp;
             } else {
                 t0[i] = conf.init_temperature;
@@ -830,41 +889,13 @@ namespace Fem {
         std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
 
         if (this->solver_type == "implicit_euler") {
-            Fem::Matrix Global_static = Matrix::Zero(conf.node_number, conf.node_number);
-            for(int i=0; i<conf.node_number; i++){
-                for(int j=0; j<conf.node_number; j++){
-                    Global_static(i,j) = Global_H(i,j) + (Global_C(i,j) / conf.time_step);
-                }
-            }
+            std::cout << "Beginning time integration (Implicit Euler)...\n";
+            solve_theta(1.0, write_vtu);
+        }
 
-            std::cout<<"Beginning time integration (Implicit Euler)...\n";
-            for(int i=conf.time_step; i<=conf.total_time; i+= conf.time_step){
-                Fem::Matrix Global_active = Global_static;
-
-                for(int j=0; j<conf.node_number; j++){
-                    double rhs = 0;
-                    for(int k = 0; k<conf.node_number; k++){
-                        rhs += (Global_C(j,k) / conf.time_step) * t0[k];
-                    }
-                    rhs += Global_P(j,0);
-                    t1[j] = rhs;
-                }
-
-                apply_dirichlet_symmetric(Global_active, t1);
-
-                t1 = cholesky_ldl(Global_active, t1);
-
-                std::cout << "\nMIN: " << *std::min_element(t1.begin(), t1.end()) << " MAX: " << *std::max_element(t1.begin(), t1.end()) << std::endl;
-
-                if(write_vtu){
-                    write_to_vtu_file((int)i, nodes, t1, triangles, quads);
-                }
-
-                showProgress(i, conf.total_time);
-
-                t0=t1;
-            }
-            std::cout << "\nMIN: " << *std::min_element(t1.begin(), t1.end()) << " MAX: " << *std::max_element(t1.begin(), t1.end()) << std::endl;
+        else if (this->solver_type == "crank-nicolson") {
+            std::cout << "Beginning time integration (Crank-Nicolson)...\n";
+            solve_theta(0.5, write_vtu);
         }
 
         else if (this->solver_type == "explicit_euler") {
@@ -879,7 +910,7 @@ namespace Fem {
             for(int i = 0; i <= steps; i++) {
                 for (int j = 0; j < conf.node_number; j++) {
 
-                    if (nodes[j].bc.exist && nodes[j].bc.dir_temp != 0.0) {
+                    if (is_dirichlet(j)) {
                         t1[j] = nodes[j].bc.dir_temp;
                         continue;
                     }
@@ -910,42 +941,7 @@ namespace Fem {
 
             std::cout << "\nMIN: " << *std::min_element(t1.begin(), t1.end())<< " MAX: " << *std::max_element(t1.begin(), t1.end()) << std::endl;
         }
-        else if (this->solver_type == "crank-nicolson") {
-            Fem::Matrix Global_static = Matrix::Zero(conf.node_number, conf.node_number);
-            for(int i=0; i<conf.node_number; i++){
-                for(int j=0; j<conf.node_number; j++){
-                    Global_static(i,j) = 0.5*Global_H(i,j) + (Global_C(i,j) / conf.time_step);
-                }
-            }
 
-            std::cout<<"Beginning time integration (Crank-Nicolson)...\n";
-            for(int i=conf.time_step; i<=conf.total_time; i+= conf.time_step){
-                Fem::Matrix Global_active = Global_static;
-
-                for(int j=0; j<conf.node_number; j++){
-                    double rhs = 0;
-                    for(int k = 0; k<conf.node_number; k++){
-                        rhs += ((Global_C(j,k) / conf.time_step) -0.5*Global_H(j,k))* t0[k];
-                    }
-                    rhs += Global_P(j,0);
-                    t1[j] = rhs;
-                }
-                apply_dirichlet_symmetric(Global_active, t1);
-
-                t1 = cholesky_ldl(Global_active, t1);
-
-                std::cout << "\nMIN: " << *std::min_element(t1.begin(), t1.end()) << " MAX: " << *std::max_element(t1.begin(), t1.end()) << std::endl;
-
-                if(write_vtu){
-                    write_to_vtu_file((int)i, nodes, t1, triangles, quads);
-                }
-
-                showProgress(i, conf.total_time);
-
-                t0=t1;
-            }
-            std::cout << "\nMIN: " << *std::min_element(t1.begin(), t1.end()) << " MAX: " << *std::max_element(t1.begin(), t1.end()) << std::endl;
-        }
         else {
             std::cout<<"Unknown solver type\n";
         }
@@ -964,15 +960,16 @@ namespace Fem {
 
         std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
 
-        Fem::Matrix A = this->Global_H;
-        std::vector<double> B(conf.node_number);
-        for (int i = 0; i < conf.node_number; ++i) {
-            B[i] = this->Global_P(i,0);
-        }
+        SparseMatrix A = this->Global_H.sparseView();
+        Eigen::VectorXd b = this->Global_P.col(0);
 
-        apply_dirichlet_symmetric(A, B);
+        const DirichletData dir = apply_dirichlet_matrix(A);
+        apply_dirichlet_rhs(dir, b);
 
-        std::vector<double> T = cholesky_ldl(A, B);
+        CholeskyLDL solver;
+        solver.factorize(A);
+        const Eigen::VectorXd T_vec = solver.solve(b);
+        std::vector<double> T(T_vec.data(), T_vec.data() + T_vec.size());
 
         std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
 
