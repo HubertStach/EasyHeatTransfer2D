@@ -224,8 +224,14 @@ void MainWindow::DrawTabMesh() {
         mesh.load_mesh_from_txt(); mesh_created = true;
     }
     if (ImGui::Button("Load .inp File", ImVec2(-1, 0))) {
-        load_inp_mesh(mesh); mesh.create_edges(); mesh_created = true;
+        load_inp_mesh(mesh);
+        mesh.mark_boundary_nodes();   // oznaczenie węzłów brzegowych
+        mesh.reconstruct_edges();     // tylko krawędzie brzegowe (zamiast create_edges)
+        selected_edges.clear();       // stare indeksy krawędzi są już nieaktualne
+        bc_edge_clicked = -1;
+        mesh_created = true;
     }
+
     ImGui::Separator();
     ImGui::Checkbox("Enable Point Placement", &creatingMesh);
     ImGui::TextDisabled("E: Place | Q: Remove last");
@@ -278,6 +284,7 @@ void MainWindow::DrawTabBCs() {
                 mesh.nodes[n1].bc.alfa = mesh.nodes[n2].bc.alfa = mesh.edges[id].bc_edge.alfa = bc_alfa;
                 mesh.nodes[n1].bc.t_ext = mesh.nodes[n2].bc.t_ext = mesh.edges[id].bc_edge.t_ext = bc_text;
                 mesh.nodes[n1].bc.dir_temp = mesh.nodes[n2].bc.dir_temp = mesh.edges[id].bc_edge.dir_temp = bc_dir_temp;
+                mesh.nodes[n1].bc.is_bc = mesh.nodes[n2].bc.is_bc = mesh.edges[id].bc_edge.is_bc = true;
             }
         }
     } else ImGui::TextDisabled("No edge selected. Click one!");
@@ -383,4 +390,5 @@ void MainWindow::DrawTabVisualisation() {
     ImGui::Separator();
     ImGui::Checkbox("Show Nodes", &display_nodes);
     ImGui::Checkbox("Show Triangles", &display_triangles);
+    ImGui::Checkbox("Show Quads", &display_quads);
 }

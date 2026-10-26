@@ -614,6 +614,35 @@ void geo::Mesh::load_mesh_from_txt(const std::string& filepath) {
     this->mesh_created = true;
 }
 
+void geo::Mesh::mark_boundary_nodes() {
+    std::map<std::pair<int, int>, int> edge_count;
+    auto count = [&](int a, int b) {
+        edge_count[{std::min(a, b), std::max(a, b)}]++;
+    };
+
+    for (const auto& tr : this->triangles)
+        for (int i = 0; i < 3; ++i)
+            count(tr.node_ids[i], tr.node_ids[(i + 1) % 3]);
+
+    for (const auto& q : this->quads)
+        for (int i = 0; i < 4; ++i)
+            count(q.node_ids[i], q.node_ids[(i + 1) % 4]);
+
+    for (auto& n : this->nodes) {
+        n.bc.is_bc = false;
+        n.color = GREEN;
+    }
+
+    for (const auto& [edge, c] : edge_count) {
+        if (c == 1) {
+            for (int id : {edge.first, edge.second}) {
+                this->nodes[id].bc.is_bc = true;
+                this->nodes[id].color = RED;
+            }
+        }
+    }
+}
+
 std::vector<int> geo::Mesh::get_continuous_edges(int clicked_edge_idx) {
     std::vector<int> result;
 
@@ -1286,4 +1315,3 @@ int geo::get_edge_clicked(const std::vector<geo::Edge>& edges, const std::vector
 
     return -1;
 }
-

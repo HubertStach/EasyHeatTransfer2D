@@ -95,6 +95,7 @@ namespace geo {
         void load_bcs(const std::string& filepath);
         void reconstruct_edges();
         void load_mesh_from_txt(const std::string& filepath = "Data/fem_data.txt");
+        void mark_boundary_nodes();
 
         std::vector<int> get_continuous_edges(int clicked_edge_idx);
     };

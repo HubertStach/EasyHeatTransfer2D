@@ -172,8 +172,7 @@ void aggregate_q(Matrix &Global, Quad element, Matrix &Local);
 void aggregate_p_vec_q(Matrix &P_vec, Quad element, Matrix &Local);
 //----------------------------
 
-void write_to_vtu_file(int step, const std::vector<Fem::Node> &nodes, const std::vector<double> &temp,
-    const std::vector<Fem::Triangle> &elements, const std::vector<Fem::Quad> &quads);
+void write_to_vtu_file(int step, const std::vector<Fem::Node> &nodes, const std::vector<double> &temp, const std::vector<Fem::Triangle> &elements, const std::vector<Fem::Quad> &quads);
 
 struct Solution{
     Matrix Global_H;
