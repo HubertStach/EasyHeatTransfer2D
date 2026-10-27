@@ -7,7 +7,7 @@
 struct Visualisation {
     bool solved = false;
     float min_temp=FLT_MAX;
-    float max_temp=0.0;
+    float max_temp= -FLT_MAX;
 
     int current_step = -1;
 

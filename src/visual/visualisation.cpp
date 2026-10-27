@@ -20,6 +20,9 @@ void Visualisation::init_visualisation(geo::Mesh &mesh) {
         return;
     }
 
+    this->min_temp = FLT_MAX;
+    this->max_temp = -FLT_MAX;
+
     std::vector<std::pair<int, std::string>> sorted_files_info;
 
     for (const auto& entry : std::filesystem::directory_iterator(this->data_path)) {

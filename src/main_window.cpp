@@ -370,6 +370,7 @@ void MainWindow::DrawTabSolver() {
         }
     }
     else if (ImGui::Button("RUN SIMULATION", ImVec2(-1, 40))) {
+        clean_vtu_files();
         if (mesh_created) {
             save_fem_data(mesh, configuration);
             fem_future = std::async(std::launch::async, fem_solve, solver_type_str);
