@@ -20,7 +20,6 @@
 #include "saving_data.h"
 #include "visual/visualisation.h"
 #include "main_window.h"
-#include "visual/view.h"
 
 #include <iomanip>
 
@@ -55,10 +54,10 @@ void MainWindow::Run() {
         int currentWidth = GetRenderWidth();
         int currentHeight = GetRenderHeight();
 
-        Vector2 worldPos = ScreenToWorld(GetMousePosition(), camera);
+        Vector2 worldPos = GetScreenToWorld2D(GetMousePosition(), camera);
         worldPos.x = round(worldPos.x / 0.1f) * 0.1f;
         worldPos.y = round(worldPos.y / 0.1f) * 0.1f;
-        Vector2 screenPos = WorldToScreen(worldPos, camera);
+        Vector2 screenPos = GetWorldToScreen2D(worldPos, camera);
 
         BeginDrawing();
         ClearBackground({20, 20, 25, 255}); // Tło viewportu
@@ -126,14 +125,7 @@ void MainWindow::Run() {
         rlScissor((int)panelMin.x, currentHeight - (int)(panelMin.y + panelSize.y), (int)panelSize.x, (int)panelSize.y);
 
         BeginMode2D(camera);
-            // Siatka pomocnicza jest symetryczna względem osi x, więc rysujemy ją bez odbicia
             if (show_grid_bool) show_adaptive_grid_dim(camera);
-
-            // ---- Od tego miejsca rysujemy we współrzędnych fizycznych (oś y w górę) ----
-            rlDrawRenderBatchActive();      // wyślij do GPU to, co narysowano wcześniej
-            rlDisableBackfaceCulling();     // odbicie odwraca orientację trójkątów
-            rlPushMatrix();
-            rlScalef(1.0f, -1.0f, 1.0f);    // odbicie osi y
 
             mesh.draw_edges();
 
@@ -158,10 +150,6 @@ void MainWindow::Run() {
             if (display_triangles || !loading_visual) mesh.draw_tr(WHITE);
             if (display_quads || !loading_visual) mesh.draw_q(WHITE);
             if (display_nodes || !loading_visual) mesh.draw_nodes(3 * (1 / camera.zoom));
-
-            rlPopMatrix();
-            rlDrawRenderBatchActive();      // narysuj trójkąty, póki culling jest wyłączony
-            rlEnableBackfaceCulling();      // przywróć stan domyślny (oczekuje go m.in. rlImGui)
         EndMode2D();
 
         // --- LEGENDA ---
