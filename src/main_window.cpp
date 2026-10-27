@@ -175,7 +175,10 @@ void MainWindow::Run() {
                 if (IsKeyDown(KEY_LEFT_SHIFT)) selected_edges = mesh.get_continuous_edges(hit);
                 else { selected_edges.clear(); selected_edges.push_back(hit); }
                 if (mesh.edges[hit].bc_edge.initialised) {
-                    bc_flux = mesh.edges[hit].bc_edge.flux; bc_alfa = mesh.edges[hit].bc_edge.alfa; bc_text = mesh.edges[hit].bc_edge.t_ext;
+                    const geo::Bc& bc = mesh.edges[hit].bc_edge;
+                    bc_is_dirichlet = bc.dirichlet;
+                    bc_dir_temp = bc.dir_temp;
+                    bc_flux = bc.flux; bc_alfa = bc.alfa; bc_text = bc.t_ext;
                 }
             }
         }
@@ -272,19 +275,38 @@ void MainWindow::DrawTabBCs() {
     if (!mesh_created) { ImGui::TextWrapped("Generate mesh first."); return; }
     if (bc_edge_clicked != -1) {
         ImGui::TextColored({1,0,1,1}, "Selected: %zu edges", selected_edges.size());
-        ImGui::InputFloat("Temperature", &bc_dir_temp);
-        ImGui::InputFloat("Flux", &bc_flux);
-        ImGui::InputFloat("Alpha", &bc_alfa);
-        ImGui::InputFloat("T_ext", &bc_text);
+        ImGui::Checkbox("Dirichlet (fixed temperature)", &bc_is_dirichlet);
+        if (bc_is_dirichlet) {
+            ImGui::InputFloat("Temperature", &bc_dir_temp);
+        } else {
+            ImGui::InputFloat("Flux", &bc_flux);
+            ImGui::InputFloat("Alpha", &bc_alfa);
+            ImGui::InputFloat("T_ext", &bc_text);
+        }
+
         if (ImGui::Button("Save BC Values", ImVec2(-1, 30))) {
             for (int id : selected_edges) {
-                int n1 = mesh.edges[id].node_ids[0], n2 = mesh.edges[id].node_ids[1];
-                mesh.nodes[n1].bc.initialised = mesh.nodes[n2].bc.initialised = mesh.edges[id].bc_edge.initialised = true;
-                mesh.nodes[n1].bc.flux = mesh.nodes[n2].bc.flux = mesh.edges[id].bc_edge.flux = bc_flux;
-                mesh.nodes[n1].bc.alfa = mesh.nodes[n2].bc.alfa = mesh.edges[id].bc_edge.alfa = bc_alfa;
-                mesh.nodes[n1].bc.t_ext = mesh.nodes[n2].bc.t_ext = mesh.edges[id].bc_edge.t_ext = bc_text;
-                mesh.nodes[n1].bc.dir_temp = mesh.nodes[n2].bc.dir_temp = mesh.edges[id].bc_edge.dir_temp = bc_dir_temp;
-                mesh.nodes[n1].bc.is_bc = mesh.nodes[n2].bc.is_bc = mesh.edges[id].bc_edge.is_bc = true;
+                geo::Bc& bc = mesh.edges[id].bc_edge;
+                bc.is_bc = true;
+                bc.initialised = true;
+                bc.dirichlet = bc_is_dirichlet;
+                bc.dir_temp = bc_is_dirichlet ? bc_dir_temp : 0.0f;
+                bc.flux     = bc_is_dirichlet ? 0.0f : bc_flux;
+                bc.alfa     = bc_is_dirichlet ? 0.0f : bc_alfa;
+                bc.t_ext    = bc_is_dirichlet ? 0.0f : bc_text;
+
+                // tylko do podświetlenia węzłów na podglądzie
+                const int n1 = mesh.edges[id].node_ids[0], n2 = mesh.edges[id].node_ids[1];
+                mesh.nodes[n1].bc.initialised = mesh.nodes[n2].bc.initialised = true;
+            }
+        }
+
+        if (ImGui::Button("Remove BC", ImVec2(-1, 0))) {
+            for (int id : selected_edges) {
+                geo::Bc& bc = mesh.edges[id].bc_edge;
+                const bool is_bc = bc.is_bc;
+                bc = geo::Bc{};
+                bc.is_bc = is_bc;
             }
         }
     } else ImGui::TextDisabled("No edge selected. Click one!");
@@ -362,10 +384,16 @@ void MainWindow::DrawTabSolver() {
     if (solving) {
         ImGui::TextDisabled("Solving...");
         if (fem_future.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
-            fem_future.get();                 // rethrows solver exceptions on main thread
-            vis.init_visualisation(mesh);      // reads VTU; kept on main thread
-            problem_solved = true;
-            loading_visual = true;
+            try {
+                fem_future.get();                 // rethrows solver exceptions on main thread
+                vis.init_visualisation(mesh);      // reads VTU; kept on main thread
+                problem_solved = true;
+                loading_visual = true;
+            }
+            catch (const std::exception& e) {
+                std::cerr << "[SOLVER ERROR] " << e.what() << "\n";
+                problem_solved = false;
+            }
             solving = false;
         }
     }

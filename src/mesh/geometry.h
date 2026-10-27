@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 #include <vector>
+#include <map>
 #include "raylib.h"
 //#include "afm.h"
 
@@ -12,6 +13,7 @@ namespace geo {
         float alfa=0.0f;
         float t_ext=0.0f;
         float dir_temp=0.0f;
+        bool dirichlet=false;   // zadana temperatura (także 0°C)
     };
     
     struct Node{
@@ -92,8 +94,8 @@ namespace geo {
         void load_nodes(const std::string& filepath);
         void load_tr_elements(const std::string& filepath);
         void load_q_elements(const std::string& filepath);
-        void load_bcs(const std::string& filepath);
-        void reconstruct_edges();
+        std::map<std::pair<int,int>, Bc> load_bcs(const std::string& filepath);
+        void reconstruct_edges(const std::map<std::pair<int,int>, Bc>& edge_bc = {});
         void load_mesh_from_txt(const std::string& filepath = "Data/fem_data.txt");
         void mark_boundary_nodes();
 

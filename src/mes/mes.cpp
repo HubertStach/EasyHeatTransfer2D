@@ -187,7 +187,7 @@ namespace Fem {
                 continue;
             }
 
-            if (line == "*Triangles" || line == "*BC" || line == "*Quads") {
+            if (!line.empty() && line[0] == '*') {
                 node_selection = false;
             }
 
@@ -226,7 +226,7 @@ namespace Fem {
                 continue;
             }
 
-            if (line == "*Nodes" || line == "*BC" || line == "*Quads") {
+            if (!line.empty() && line[0] == '*') {
                 element_selection = false;
             }
 
@@ -265,7 +265,7 @@ namespace Fem {
                 continue;
             }
 
-            if (line == "*Nodes" || line == "*BC" || line == "*Triangles") {
+            if (!line.empty() && line[0] == '*') {
                 element_selection = false;
             }
 
@@ -320,46 +320,70 @@ namespace Fem {
         return data;
     }
 
-    std::vector<Node> load_bc(const std::string& file_name, std::vector<Node>& nodes)
+    // Sekcja *Dirichlet:  id_wezla, T
+    std::vector<Node> load_dirichlet(const std::string& file_name, std::vector<Node>& nodes)
     {
-        std::fstream file;
-
-        file.open(file_name);
+        std::ifstream file(file_name);
         if(!file.good()){
             std::cout << "Couldn't load text file\n";
             return nodes;
         }
 
         std::string line;
-        bool bc_selection = false;
+        bool selection = false;
 
         while (std::getline(file, line)) {
-            if (line == "*BC") {
-                bc_selection = true;
+            if (!line.empty() && line[0] == '*') {   // początek dowolnej sekcji
+                selection = (line == "*Dirichlet");
                 continue;
             }
+            if (!selection || line.empty()) continue;
 
-            if (line == "*Nodes" || line == "*Triangles") {
-                bc_selection = false;
-            }
-
-            if (bc_selection) {
-                int node_id;
-                double flux, alfa, t_ext, dir_temp;
-                char comma;
-                std::istringstream iss(line);
-                if (iss >> node_id >> comma >> dir_temp >> comma >> flux >> comma >> alfa >> comma >> t_ext) {
-                    BC_node temp_bc(node_id, flux, alfa, t_ext, dir_temp);
-                    nodes[node_id].bc = temp_bc;
-                }
-                else {
-                    std::cout << "Failed to parse line: " << line << "\n";
-                }
+            int node_id;
+            double temperature;
+            char comma;
+            std::istringstream iss(line);
+            if (iss >> node_id >> comma >> temperature) {
+                nodes[node_id].bc.dirichlet = true;
+                nodes[node_id].bc.dir_temp = temperature;
+            } else {
+                std::cout << "Failed to parse line: " << line << "\n";
             }
         }
-
-        file.close();
         return nodes;
+    }
+
+    // Sekcja *EdgeBC:  wezel_1, wezel_2, q_N, alfa, T_ext
+    EdgeBCMap load_edge_bc(const std::string& file_name)
+    {
+        EdgeBCMap result;
+        std::ifstream file(file_name);
+        if(!file.good()){
+            std::cout << "Couldn't load text file\n";
+            return result;
+        }
+
+        std::string line;
+        bool selection = false;
+
+        while (std::getline(file, line)) {
+            if (!line.empty() && line[0] == '*') {
+                selection = (line == "*EdgeBC");
+                continue;
+            }
+            if (!selection || line.empty()) continue;
+
+            int n1, n2;
+            EdgeBC bc;
+            char comma;
+            std::istringstream iss(line);
+            if (iss >> n1 >> comma >> n2 >> comma >> bc.flux >> comma >> bc.alfa >> comma >> bc.t_ext) {
+                result[edge_key(n1, n2)] = bc;
+            } else {
+                std::cout << "Failed to parse line: " << line << "\n";
+            }
+        }
+        return result;
     }
 
     void print_config(GlobalData configuration)
@@ -409,7 +433,7 @@ namespace Fem {
         return H_local;
     }
 
-    Matrix calc_local_Hbc_tr(Triangle &local_el, std::vector<Node> &nodes)
+    Matrix calc_local_Hbc_tr(Triangle &local_el, std::vector<Node> &nodes, const EdgeBCMap &edge_bc)
     {
         Matrix Hbc = Matrix::Zero(3, 3);
 
@@ -417,9 +441,10 @@ namespace Fem {
             int id1 = local_el.node_ids[i];
             int id2 = local_el.node_ids[(i + 1) % 3];
 
-            if (! (nodes[id1].bc.exist && nodes[id2].bc.exist)) continue;
+            const EdgeBC *bc = find_edge_bc(edge_bc, id1, id2);
+            if (bc == nullptr) continue;   // krawędź wewnętrzna lub bez warunku
 
-            const double alfa = nodes[id1].bc.alfa;
+            const double alfa = bc->alfa;
             const double detJ = 0.5f*dist(nodes[id1], nodes[id2]);
 
             for (int pc=0; pc<2; ++pc) {
@@ -437,7 +462,7 @@ namespace Fem {
         return Hbc;
     }
 
-    Matrix calc_p_vec_tr(const Triangle &local_el, const std::vector<Node> &nodes)
+    Matrix calc_p_vec_tr(const Triangle &local_el, const std::vector<Node> &nodes, const EdgeBCMap &edge_bc)
     {
         Matrix p_vec = Matrix::Zero(3, 1);
 
@@ -445,14 +470,14 @@ namespace Fem {
             const int id1 = local_el.node_ids[i];
             const int id2 = local_el.node_ids[(i + 1) % 3];
 
-            if (!(nodes[id1].bc.exist && nodes[id2].bc.exist)) continue;
+            const EdgeBC *bc = find_edge_bc(edge_bc, id1, id2);
+            if (bc == nullptr) continue;
 
             const double detJ = 0.5f*dist(nodes[id1], nodes[id2]);
 
-            const double flux = nodes[id1].bc.flux;
-
-            const double alfa = nodes[id1].bc.alfa;
-            const double t_ext = nodes[id2].bc.t_ext;
+            const double flux = bc->flux;
+            const double alfa = bc->alfa;
+            const double t_ext = bc->t_ext;
 
             Matrix pvec_edge = Matrix::Zero(3,1);
 
@@ -561,7 +586,7 @@ namespace Fem {
         return H;
     }
 
-    Matrix calc_local_Hbc_q(Fem::Quad &element, std::vector<Fem::Node> &nodes)
+    Matrix calc_local_Hbc_q(Fem::Quad &element, std::vector<Fem::Node> &nodes, const EdgeBCMap &edge_bc)
     {
         Fem::Matrix H_bc = Matrix::Zero(4,4);
 
@@ -570,11 +595,10 @@ namespace Fem {
             int id1 = element.node_ids[edge];
             int id2 = element.node_ids[(edge+1)%4];
 
-            if(!(nodes[id1].bc.exist && nodes[id2].bc.exist)){
-                continue;
-            }
+            const EdgeBC *bc = find_edge_bc(edge_bc, id1, id2);
+            if (bc == nullptr) continue;   // krawędź wewnętrzna lub bez warunku
 
-            double alfa = nodes[id1].bc.alfa;
+            double alfa = bc->alfa;
 
             double det_J = 0.5*dist(nodes[id1], nodes[id2]);
 
@@ -596,7 +620,7 @@ namespace Fem {
         return H_bc;
     }
 
-    Matrix calc_P_q(Fem::Quad &element, std::vector<Fem::Node> &nodes)
+    Matrix calc_P_q(Fem::Quad &element, std::vector<Fem::Node> &nodes, const EdgeBCMap &edge_bc)
     {
         Fem::Matrix p_vec = Matrix::Zero(4,1);
 
@@ -605,14 +629,13 @@ namespace Fem {
             int id1 = element.node_ids[edge];
             int id2 = element.node_ids[(edge+1)%4];
 
-            if(!(nodes[id1].bc.exist && nodes[id2].bc.exist)){
-                continue;
-            }
+            const EdgeBC *bc = find_edge_bc(edge_bc, id1, id2);
+            if (bc == nullptr) continue;
 
-            double temperature = nodes[id1].bc.t_ext;
-            double alfa = nodes[id1].bc.alfa;
+            double temperature = bc->t_ext;
+            double alfa = bc->alfa;
 
-            double flux = nodes[id1].bc.flux;
+            double flux = bc->flux;
 
             double det_J = 0.5*dist(nodes[id1], nodes[id2]);
 
@@ -626,7 +649,7 @@ namespace Fem {
                 Ns(3,0) = Fem::N4_q(Fem::bc_xi_q[pc_on_egde], Fem::bc_eta_q[pc_on_egde]);
 
                 for(int i=0; i<4;i++){
-                    P_edge(i,0) += Ns(i,0)*bc_weights_q[pc];
+                    P_edge(i,0) += Ns(i,0)*bc_weights_q[pc_on_egde];
                 }
             }
 
@@ -764,7 +787,7 @@ namespace Fem {
     }
 
     bool Solution::is_dirichlet(const int node) const {
-        return nodes[node].bc.exist && nodes[node].bc.dir_temp != 0.0;
+        return nodes[node].bc.dirichlet;
     }
 
     // Narzucenie warunku Dirichleta na macierz układu (sekcja 2.2.6).
@@ -906,8 +929,8 @@ namespace Fem {
             }
 
             std::cout << "Beginning time integration (Explicit Euler)\n";
-            int steps = static_cast<int>(conf.total_time / conf.time_step);
-            for(int i = 0; i <= steps; i++) {
+            const int n_steps = static_cast<int>(std::lround(conf.total_time / conf.time_step));
+            for(int i = 1; i <= n_steps; i++) {
                 for (int j = 0; j < conf.node_number; j++) {
 
                     if (is_dirichlet(j)) {
@@ -935,7 +958,7 @@ namespace Fem {
                     write_to_vtu_file((int)i, nodes, t1, triangles, quads);
                 }
 
-                showProgress(i, conf.total_time);
+                showProgress(i, n_steps);
                 t0 = t1;
             }
 

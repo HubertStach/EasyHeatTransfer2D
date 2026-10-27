@@ -412,7 +412,7 @@ void geo::Mesh::load_nodes(const std::string &filepath) {
             continue;
         }
 
-        if (line == "*Triangles" || line == "*BC" || line == "*Quads") {
+        if (!line.empty() && line[0] == '*') {
             node_selection = false;
         }
 
@@ -449,7 +449,7 @@ void geo::Mesh::load_tr_elements(const std::string &filepath) {
             continue;
         }
 
-        if (line == "*Nodes" || line == "*BC" || line == "*Quads") {
+        if (!line.empty() && line[0] == '*') {
             tr_selection = false;
         }
 
@@ -486,7 +486,7 @@ void geo::Mesh::load_q_elements(const std::string &filepath) {
             continue;
         }
 
-        if (line == "*Nodes" || line == "*BC" || line=="*Triangles") {
+        if (!line.empty() && line[0] == '*') {
             tr_selection = false;
         }
 
@@ -504,53 +504,57 @@ void geo::Mesh::load_q_elements(const std::string &filepath) {
     this->quads = q_elements;
 }
 
-void geo::Mesh::load_bcs(const std::string &filepath) {
-    std::fstream file;
+// Wczytuje warunki brzegowe z pliku fem_data.txt:
+//  *Dirichlet -> zapisywane w węzłach,
+//  *EdgeBC    -> zwracane jako mapa krawędź (min, max) -> warunek
+std::map<std::pair<int,int>, geo::Bc> geo::Mesh::load_bcs(const std::string &filepath) {
+    std::map<std::pair<int,int>, geo::Bc> edge_bc;
 
-    file.open(filepath);
+    std::ifstream file(filepath);
     if(!file.good()){
         std::cout << "Couldn't load text file\n";
-        return ;
+        return edge_bc;
     }
 
     std::string line;
-    bool bc_selection = false;
+    std::string section;
 
     while (std::getline(file, line)) {
-        if (line == "*BC") {
-            bc_selection = true;
+        if (!line.empty() && line[0] == '*') {
+            section = line;
             continue;
         }
+        if (line.empty()) continue;
 
-        if (line == "*Nodes" || line == "*Triangles" || line == "*Quads") {
-            bc_selection = false;
-        }
+        std::istringstream iss(line);
+        char comma;
 
-        if (bc_selection) {
+        if (section == "*Dirichlet") {
             int node_id;
-            float flux, alfa, t_ext, dir_temp;
-            char comma;
-            std::istringstream iss(line);
-            if (iss >> node_id >> comma >> dir_temp >> comma >> flux >> comma >> alfa >> comma >> t_ext) {
-                this->nodes[node_id].bc.flux = flux;
-                this->nodes[node_id].bc.alfa = alfa;
-                this->nodes[node_id].bc.t_ext = t_ext;
-                this->nodes[node_id].bc.dir_temp = dir_temp;
+            float temperature;
+            if (iss >> node_id >> comma >> temperature) {
+                this->nodes[node_id].bc.dirichlet = true;
+                this->nodes[node_id].bc.dir_temp = temperature;
                 this->nodes[node_id].bc.is_bc = true;
                 this->nodes[node_id].bc.initialised = true;
-
             }
-            else {
-                std::cout << "Failed to parse line: " << line << "\n"; // Debug output
+        }
+        else if (section == "*EdgeBC") {
+            int n1, n2;
+            geo::Bc bc;
+            if (iss >> n1 >> comma >> n2 >> comma >> bc.flux >> comma >> bc.alfa >> comma >> bc.t_ext) {
+                bc.is_bc = true;
+                bc.initialised = true;
+                edge_bc[{std::min(n1, n2), std::max(n1, n2)}] = bc;
+                this->nodes[n1].bc.initialised = true;
+                this->nodes[n2].bc.initialised = true;
             }
         }
     }
-
-    file.close();
+    return edge_bc;
 }
 
-//
-void geo::Mesh::reconstruct_edges() {
+void geo::Mesh::reconstruct_edges(const std::map<std::pair<int,int>, geo::Bc>& edge_bc) {
     this->edges.clear();
 
     std::map<std::pair<int, int>, int> edge_count;
@@ -559,11 +563,7 @@ void geo::Mesh::reconstruct_edges() {
         for (int i = 0; i < 3; ++i) {
             int n1 = tr.node_ids[i];
             int n2 = tr.node_ids[(i + 1) % 3];
-
-            int min_n = std::min(n1, n2);
-            int max_n = std::max(n1, n2);
-
-            edge_count[{min_n, max_n}]++;
+            edge_count[{std::min(n1, n2), std::max(n1, n2)}]++;
         }
     }
 
@@ -571,34 +571,31 @@ void geo::Mesh::reconstruct_edges() {
         for (int i = 0; i < 4; ++i) {
             int n1 = q.node_ids[i];
             int n2 = q.node_ids[(i + 1) % 4];
-
-            int min_n = std::min(n1, n2);
-            int max_n = std::max(n1, n2);
-
-            edge_count[{min_n, max_n}]++;
+            edge_count[{std::min(n1, n2), std::max(n1, n2)}]++;
         }
     }
 
+    // krawędź należąca do dokładnie jednego elementu leży na brzegu
     for (const auto& pair : edge_count) {
-        if (pair.second == 1) {
-            int n1 = pair.first.first;
-            int n2 = pair.first.second;
+        if (pair.second != 1) continue;
 
-            geo::Edge new_edge(n1, n2);
+        const int n1 = pair.first.first;
+        const int n2 = pair.first.second;
 
-            if (this->nodes[n1].bc.is_bc && this->nodes[n2].bc.is_bc) {
-                new_edge.bc_edge.is_bc = true;
+        geo::Edge new_edge(n1, n2);
+        new_edge.bc_edge.is_bc = true;
 
-                if (this->nodes[n1].bc.initialised && this->nodes[n2].bc.initialised) {
-                    new_edge.bc_edge.initialised = true;
-                    new_edge.bc_edge.flux = this->nodes[n1].bc.flux;
-                    new_edge.bc_edge.alfa = this->nodes[n1].bc.alfa;
-                    new_edge.bc_edge.t_ext = this->nodes[n1].bc.t_ext;
-                }
-            }
-
-            this->edges.push_back(new_edge);
+        auto it = edge_bc.find(pair.first);
+        if (it != edge_bc.end()) {
+            new_edge.bc_edge = it->second;                    // Neumann / Robin
         }
+        else if (this->nodes[n1].bc.dirichlet && this->nodes[n2].bc.dirichlet) {
+            new_edge.bc_edge.initialised = true;              // Dirichlet
+            new_edge.bc_edge.dirichlet = true;
+            new_edge.bc_edge.dir_temp = this->nodes[n1].bc.dir_temp;
+        }
+
+        this->edges.push_back(new_edge);
     }
 
     this->initial_edges = this->edges;
@@ -609,8 +606,8 @@ void geo::Mesh::load_mesh_from_txt(const std::string& filepath) {
     this->load_nodes(filepath);
     this->load_tr_elements(filepath);
     this->load_q_elements(filepath);
-    this->load_bcs(filepath);
-    this->reconstruct_edges();
+    const auto edge_bc = this->load_bcs(filepath);
+    this->reconstruct_edges(edge_bc);
     this->mesh_created = true;
 }
 

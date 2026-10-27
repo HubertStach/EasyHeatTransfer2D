@@ -4,6 +4,8 @@
 #include <iostream>
 #include <vector>
 #include <string>
+#include <map>
+#include <algorithm>
 #include <../../include/Eigen/Dense>
 #include "../progress_bar.h"
 #include "../solver/cholesky_ldl.h"
@@ -31,33 +33,30 @@ double dN2deta_q(double xi);
 double dN3deta_q(double xi);
 double dN4deta_q(double xi);
 
+// Warunek Dirichleta jest warunkiem węzłowym.
 struct BC_node{
-    int id;
-
-    bool exist=false;
-
-    double flux;
-    double alfa;
-    double t_ext;
-    double dir_temp;
-
-    BC_node(){
-        this->id=0;
-        this->flux=0.0;
-        this->alfa=0.0;
-        this->t_ext=0.0;
-        this->dir_temp=0.0;
-    }
-
-    BC_node(int id, double flux, double alfa, double t_ext, double dir_temp){
-        this->exist=true;
-        this->id=id;
-        this->flux=flux;
-        this->alfa=alfa;
-        this->t_ext=t_ext;
-        this->dir_temp=dir_temp;
-    }
+    bool dirichlet = false;   // czy w węźle zadano temperaturę
+    double dir_temp = 0.0;    // zadana temperatura
 };
+
+// Warunki Neumanna i Robina należą do krawędzi brzegowej.
+struct EdgeBC{
+    double flux = 0.0;   // strumień ciepła q_N
+    double alfa = 0.0;   // współczynnik wymiany ciepła
+    double t_ext = 0.0;  // temperatura otoczenia
+};
+
+// Klucz krawędzi niezależny od kolejności węzłów: (min, max)
+using EdgeKey = std::pair<int,int>;
+using EdgeBCMap = std::map<EdgeKey, EdgeBC>;
+
+inline EdgeKey edge_key(int a, int b) { return {std::min(a,b), std::max(a,b)}; }
+
+// Zwraca warunek przypisany krawędzi (a,b) albo nullptr, jeśli krawędź nie leży na brzegu z WB
+inline const EdgeBC* find_edge_bc(const EdgeBCMap &edge_bc, int a, int b) {
+    auto it = edge_bc.find(edge_key(a, b));
+    return it == edge_bc.end() ? nullptr : &it->second;
+}
 
 struct Node{
     double x;
@@ -125,7 +124,8 @@ struct Quad{
 std::vector<Node> load_nodes(const std::string& file_name);
 std::vector<Triangle> load_triangles(const std::string& file_name);
 std::vector<Quad> load_quad_elements(std::string file_name);
-std::vector<Node> load_bc(const std::string& file_name, std::vector<Node>& nodes);
+std::vector<Node> load_dirichlet(const std::string& file_name, std::vector<Node>& nodes);
+EdgeBCMap load_edge_bc(const std::string& file_name);
 
 struct GlobalData{
     double total_time;
@@ -156,8 +156,8 @@ void print_config(Fem::GlobalData configuration);
 
 //---------Trójkąty-----------
 Matrix calc_local_H_tr(Triangle &local_el, std::vector<Node> &nodes, double conductivity);
-Matrix calc_local_Hbc_tr(Triangle &local_el, std::vector<Node> &nodes);
-Matrix calc_p_vec_tr(const Triangle &local_el, const std::vector<Node> &nodes);
+Matrix calc_local_Hbc_tr(Triangle &local_el, std::vector<Node> &nodes, const EdgeBCMap &edge_bc);
+Matrix calc_p_vec_tr(const Triangle &local_el, const std::vector<Node> &nodes, const EdgeBCMap &edge_bc);
 Matrix calc_c_tr(const Triangle &local_el, const std::vector<Node> &nodes, double density, double specific_heat, int c_lump);
 void aggregate_tr(Matrix &Global, const Triangle& element, Matrix &Local);
 void aggregate_p_vec_tr(Matrix &P_vec, const Triangle& element, Matrix &Local);
@@ -165,8 +165,8 @@ void aggregate_p_vec_tr(Matrix &P_vec, const Triangle& element, Matrix &Local);
 
 //---------Czworokąty-----------
 Matrix calc_local_H_q(Quad &element, std::vector<Node> &nodes, double conductivity);
-Matrix calc_local_Hbc_q(Quad &element, std::vector<Node> &nodes);
-Matrix calc_P_q(Quad &element, std::vector<Node> &nodes);
+Matrix calc_local_Hbc_q(Quad &element, std::vector<Node> &nodes, const EdgeBCMap &edge_bc);
+Matrix calc_P_q(Quad &element, std::vector<Node> &nodes, const EdgeBCMap &edge_bc);
 Matrix calc_local_C_q(Quad &element, std::vector<Node> &nodes, double rho, double c, int c_lump);
 void aggregate_q(Matrix &Global, Quad element, Matrix &Local);
 void aggregate_p_vec_q(Matrix &P_vec, Quad element, Matrix &Local);
@@ -182,6 +182,7 @@ struct Solution{
     std::vector<Node> nodes;
     std::vector<Triangle> triangles;
     std::vector<Quad> quads;
+    EdgeBCMap edge_bc;
 
     std::string solver_type;
 
@@ -206,7 +207,8 @@ struct Solution{
         this->nodes = load_nodes(filepath);
         this->triangles = load_triangles(filepath);
         this->quads = load_quad_elements(filepath);
-        this->nodes = load_bc(filepath, this->nodes);
+        this->nodes = load_dirichlet(filepath, this->nodes);
+        this->edge_bc = load_edge_bc(filepath);
 
         print_config(this->conf);
 
@@ -224,8 +226,8 @@ struct Solution{
         std::cout<<"Assembling triangular elements matrices...\n";
         for(Triangle &element: this->triangles){
             element.H_local = calc_local_H_tr(element, this->nodes, this->conf.conductivity);
-            element.H_bc = calc_local_Hbc_tr(element, this->nodes);
-            element.P = calc_p_vec_tr(element, this->nodes);
+            element.H_bc = calc_local_Hbc_tr(element, this->nodes, this->edge_bc);
+            element.P = calc_p_vec_tr(element, this->nodes, this->edge_bc);
             element.C = calc_c_tr(element, this->nodes, this->conf.density, this->conf.specific_heat, c_lump);
 
             element.H_local += element.H_bc;
@@ -238,8 +240,8 @@ struct Solution{
         std::cout<<"Assembling quad elements matrices...\n";
         for (Quad &quad: this->quads) {
             quad.H_local = calc_local_H_q(quad, this->nodes, this->conf.conductivity);
-            quad.H_bc = calc_local_Hbc_q(quad, this->nodes);
-            quad.P = calc_P_q(quad, this->nodes);
+            quad.H_bc = calc_local_Hbc_q(quad, this->nodes, this->edge_bc);
+            quad.P = calc_P_q(quad, this->nodes, this->edge_bc);
             quad.C = calc_local_C_q(quad, this->nodes, this->conf.density, this->conf.specific_heat, c_lump);
 
             quad.H_local += quad.H_bc;

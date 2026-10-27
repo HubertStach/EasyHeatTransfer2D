@@ -5,6 +5,7 @@
 #include "saving_data.h"
 
 #include <algorithm>
+#include <map>
 #include <fstream>
 #include <vector>
 
@@ -58,11 +59,25 @@ void save_fem_data(geo::Mesh &mesh, Fem::GlobalData conf) {
              << mesh.quads[i].node_ids[3] << "\n";
     }
 
-    // 2.4 zapis warunkow brzegowych
-    plik << "*BC\n";
-    for (size_t i = 0; i < mesh.nodes.size(); i++) {
-        if (mesh.nodes[i].bc.is_bc) {
-            plik << i << ", "<< mesh.nodes[i].bc.dir_temp << ", " << mesh.nodes[i].bc.flux << ", " << mesh.nodes[i].bc.alfa << ", " << mesh.nodes[i].bc.t_ext << "\n";
+    // 2.4 warunek Dirichleta - w węzłach krawędzi oznaczonych jako Dirichlet
+    std::map<int, float> dirichlet_nodes;
+    for (const auto& e : mesh.edges) {
+        if (e.bc_edge.initialised && e.bc_edge.dirichlet) {
+            dirichlet_nodes[e.node_ids[0]] = e.bc_edge.dir_temp;
+            dirichlet_nodes[e.node_ids[1]] = e.bc_edge.dir_temp;
+        }
+    }
+    plik << "*Dirichlet\n";
+    for (const auto& [node_id, temperature] : dirichlet_nodes) {
+        plik << node_id << ", " << temperature << "\n";
+    }
+
+    // 2.5 warunki Neumanna i Robina - na krawędziach
+    plik << "*EdgeBC\n";
+    for (const auto& e : mesh.edges) {
+        if (e.bc_edge.initialised && !e.bc_edge.dirichlet) {
+            plik << e.node_ids[0] << ", " << e.node_ids[1] << ", "
+                 << e.bc_edge.flux << ", " << e.bc_edge.alfa << ", " << e.bc_edge.t_ext << "\n";
         }
     }
 

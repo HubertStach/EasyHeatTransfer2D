@@ -49,6 +49,7 @@ struct MainWindow {
     float bc_alfa = 0.0f;
     float bc_text = 0.0f;
     float bc_dir_temp = 0.0f;
+    bool bc_is_dirichlet = false;
 
     MainWindow();
     void Run();
