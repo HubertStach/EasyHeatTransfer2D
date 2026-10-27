@@ -5,6 +5,7 @@
 #include "../../include/raymath.h"
 
 #include "axis.h"
+#include "../visual/view.h"
 
 #include "rlImGui.h"
 #include "rlImGuiColors.h"
@@ -13,9 +14,9 @@
 #define DARKGREY_303030 CLITERAL(Color){29, 29, 29, 255}
 
 void DrawCoordinateAxes(Camera2D camera, ImVec2 panelMin, ImVec2 panelSize) {
-    // Oblicz widoczny obszar świata
-    Vector2 worldTopLeft = GetScreenToWorld2D({panelMin.x, panelMin.y}, camera);
-    Vector2 worldBottomRight = GetScreenToWorld2D({panelMin.x + panelSize.x, panelMin.y + panelSize.y}, camera);
+
+    Vector2 worldTopLeft = ScreenToWorld({panelMin.x, panelMin.y}, camera);
+    Vector2 worldBottomRight = ScreenToWorld({panelMin.x + panelSize.x, panelMin.y + panelSize.y}, camera);
     
     // Parametry osi
     float axisHeight = 25; // wysokość osi X (na dole)
@@ -28,12 +29,12 @@ void DrawCoordinateAxes(Camera2D camera, ImVec2 panelMin, ImVec2 panelSize) {
                   ColorAlpha(DARKGREY_303030, 0.8f));
     
     DrawLine(panelMin.x+axisWidth/1.1, worldTopLeft.y, panelMin.x+axisWidth/1.1, panelMin.y + panelSize.y - axisHeight, WHITE);
-    DrawLine(panelMin.x, panelMin.y + panelSize.y - axisHeight, panelMin.x+panelSize.x, panelMin.y + panelSize.y - axisHeight, WHITE);
+    DrawLine(panelMin.x+axisWidth/1.1, panelMin.y, panelMin.x+axisWidth/1.1, panelMin.y + panelSize.y - axisHeight, WHITE);
     // Oś X (na dole)
     DrawAxisX(worldTopLeft.x, worldBottomRight.x, panelMin, panelSize, axisHeight);
     
     // Oś Y (z lewej)  
-    DrawAxisY(worldTopLeft.y, worldBottomRight.y, panelMin, panelSize, axisWidth, axisHeight, camera);
+    DrawAxisY(worldBottomRight.y, worldTopLeft.y, panelMin, panelSize, axisWidth, axisHeight, camera);
     
     // Narożnik (przecięcie osi)
     DrawRectangle(panelMin.x, panelMin.y + panelSize.y - axisHeight, axisWidth-5, axisHeight, DARKGREY_303030);
@@ -65,22 +66,20 @@ void DrawAxisX(float worldLeft, float worldRight, ImVec2 panelMin, ImVec2 panelS
     }
 }
 
-void DrawAxisY(float worldTop, float worldBottom, ImVec2 panelMin, ImVec2 panelSize, float axisWidth, float axisHeight, Camera2D camera) {
-    float worldHeight = worldBottom - worldTop;
+void DrawAxisY(float worldMin, float worldMax, ImVec2 panelMin, ImVec2 panelSize, float axisWidth, float axisHeight, Camera2D camera) {
+    float worldHeight = worldMax - worldMin;
     float step = CalculateAxisStep(worldHeight);
-    
-    float firstTick = floor(worldTop / step) * step;
-    
-    for (float worldY = firstTick; worldY <= worldBottom + step; worldY += step) {
-        // UŻYJ BEZPOŚREDNIO funkcji raylib - tak jak robi to Twoja kamera
-        Vector2 worldPoint = {0, worldY}; // dowolne X, ważne tylko Y
-        Vector2 screenPoint = GetWorldToScreen2D(worldPoint, camera);
-        
-        // Sprawdź czy punkt jest w obszarze osi
+
+    float firstTick = floor(worldMin / step) * step;
+
+    for (float worldY = firstTick; worldY <= worldMax + step; worldY += step) {
+        Vector2 screenPoint = WorldToScreen({0, worldY}, camera);   // dowolne x, ważne tylko y
+
+        // Sprawdź, czy punkt jest w obszarze osi
         if (screenPoint.y >= panelMin.y && screenPoint.y <= panelMin.y + panelSize.y - axisHeight) {
             // Znacznik
             DrawLine(panelMin.x + axisWidth - 8, screenPoint.y, panelMin.x + axisWidth, screenPoint.y, WHITE);
-            
+
             // Tekst
             char text[32];
             snprintf(text, sizeof(text), "%.1f", worldY);

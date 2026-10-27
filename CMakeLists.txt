@@ -31,7 +31,8 @@ set(SOURCE_FILES
 src/solver/cholesky_ldl.cpp
         src/solver/cholesky_ldl.h
         src/progress_bar.cpp
-        src/progress_bar.h)
+        src/progress_bar.h
+        src/visual/view.h)
 
 add_executable(${PROJECT_NAME} ${SOURCE_FILES})
 
