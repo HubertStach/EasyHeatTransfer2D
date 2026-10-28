@@ -13,13 +13,13 @@
 
 namespace Fem {
     // --------------Triangles----------------
-    constexpr double bc_pc_xi_tr[6] = {-0.57735f, 0.57735f, 0.57735f, -0.57735f, -1.0f, -1.0f};
-    constexpr double bc_pc_eta_tr[6] = {-1.0f, -1.0f, -0.57735f, 0.57735f, 0.57735, -0.57735};
+    constexpr double bc_pc_xi_tr[6] = {-0.57735, 0.57735, 0.57735, -0.57735, -1.0, -1.0};
+    constexpr double bc_pc_eta_tr[6] = {-1.0, -1.0, -0.57735, 0.57735, 0.57735, -0.57735};
     constexpr double bc_pc_w_tr[6] = {1, 1, 1, 1, 1, 1};
 
-    constexpr double pc_xi_tr[3] = {-2.0f/3.0f, -2.0f/3.0f, 1.0f/3.0f};
-    constexpr double pc_eta_tr[3] = {-2.0f/3.0f, 1.0f/3.0f, -2.0f/3.0f};
-    constexpr double pc_w_tr[3] = {2.0f/3.0f, 2.0f/3.0f, 2.0f/3.0f};
+    constexpr double pc_xi_tr[3] = {-2.0/3.0, -2.0/3.0, 1.0/3.0};
+    constexpr double pc_eta_tr[3] = {-2.0/3.0, 1.0/3.0, -2.0/3.0};
+    constexpr double pc_w_tr[3] = {2.0/3.0, 2.0/3.0, 2.0/3.0};
 
     double N1_tr(double xi, double eta) {
         return -(xi+eta)*0.5f;
@@ -115,13 +115,13 @@ namespace Fem {
 
     //---------------Quads-----------------
 
-    std::vector<double> pc_xi_q = {-1.0/std::sqrt(3), 1.0/std::sqrt(3), 1.0/std::sqrt(3), -1.0/std::sqrt(3)};
-    std::vector<double> pc_eta_q = {-1.0/std::sqrt(3), -1.0/std::sqrt(3), 1.0/std::sqrt(3), 1.0/std::sqrt(3)};
-    std::vector<double> pc_weights_q = {1,1,1,1};
+    constexpr double pc_xi_q[4] = {-1.0/0.57735, 1.0/0.57735, 1.0/0.57735, -1.0/0.57735};
+    constexpr double pc_eta_q[4] = {-1.0/0.57735, -1.0/0.57735, 1.0/0.57735, 1.0/0.57735};
+    constexpr double pc_weights_q[4] = {1,1,1,1};
 
-    std::vector<double> bc_xi_q = {-1.0/std::sqrt(3), 1.0/std::sqrt(3), 1,1, 1.0/std::sqrt(3), -1.0/std::sqrt(3), -1, -1};
-    std::vector<double> bc_eta_q = {-1,-1, -1.0/std::sqrt(3), 1.0/std::sqrt(3), 1, 1, 1.0/std::sqrt(3), -1.0/std::sqrt(3)};
-    std::vector<double> bc_weights_q = {1,1,1,1,1,1,1,1};
+    constexpr double bc_xi_q[8] = {-1.0/0.57735, 1.0/0.57735, 1,1, 1.0/0.57735, -1.0/0.57735, -1, -1};
+    constexpr double bc_eta_q[8] = {-1,-1, -1.0/0.57735, 1.0/0.57735, 1, 1, 1.0/0.57735, -1.0/0.57735};
+    constexpr double bc_weights_q[8] = {1,1,1,1,1,1,1,1};
 
     double dN1dxi_q(double eta) { return -0.25 * (1 - eta); }
     double dN2dxi_q(double eta) { return 0.25 * (1 - eta); }
