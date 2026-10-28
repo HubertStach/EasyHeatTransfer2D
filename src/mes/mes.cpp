@@ -495,11 +495,7 @@ namespace Fem {
             }
 
             for (int k =0; k<3; ++k) {
-                p_vec(k,0) += pvec_edge(k,0)*alfa*detJ*t_ext;
-            }
-
-            for (int k=0; k<3; ++k) {
-                p_vec(k,0) += pvec_edge(k,0)*detJ*flux;
+                p_vec(k,0) += pvec_edge(k,0)*detJ*(alfa*t_ext + flux);
             }
         }
 
